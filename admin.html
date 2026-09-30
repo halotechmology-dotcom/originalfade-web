@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Panel · ORIGINALFADE</title>
+<meta name="theme-color" content="#0a0908">
+<link rel="icon" href="assets/favicon.ico" sizes="48x48">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://nnlagwtasskctaqllhag.supabase.co" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,500;1,700;1,800&family=Barlow:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/admin.css">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<script src="js/config.js" defer></script>
+<script src="js/utils.js" defer></script>
+<script src="js/admin.js" defer></script>
+</head>
+<body class="admin">
+
+<!-- Cargando -->
+<div class="a-boot" id="view-boot">
+  <img src="assets/mascota-bn.png" width="640" height="840" alt="">
+  <p>Cargando panel…</p>
+</div>
+
+<!-- Ingreso -->
+<main class="a-auth" id="view-login" hidden>
+  <div class="a-auth__card">
+    <span class="nav__logo a-auth__logo">
+      <picture>
+        <source srcset="assets/logo-horizontal.webp" type="image/webp">
+        <img src="assets/logo-horizontal.png" width="720" height="234" alt="Original Fade · Gallery & Barber Shop">
+      </picture>
+    </span>
+    <h1 class="a-auth__title">Panel de administración</h1>
+
+    <form id="login-form" class="a-stack" novalidate>
+      <div class="field">
+        <label class="field__label" for="login-email">Email</label>
+        <input class="input" id="login-email" name="email" type="email" autocomplete="username" inputmode="email" required>
+      </div>
+      <div class="field">
+        <label class="field__label" for="login-pass">Contraseña</label>
+        <div class="a-pass">
+          <input class="input" id="login-pass" name="password" type="password" autocomplete="current-password" required>
+          <button type="button" class="a-pass__toggle" data-toggle-pass="login-pass" aria-pressed="false">Mostrar</button>
+        </div>
+      </div>
+      <p class="a-form-error" id="login-error" role="alert"></p>
+      <button class="btn btn--lens btn--lg btn--block" type="submit" id="login-submit">Entrar</button>
+    </form>
+    <button type="button" class="a-link" id="forgot-open">¿Olvidaste tu contraseña?</button>
+
+    <form id="forgot-form" class="a-stack" hidden novalidate>
+      <p class="a-muted">Escribí tu email y te mandamos un link para crear una contraseña nueva.</p>
+      <div class="field">
+        <label class="field__label" for="forgot-email">Email</label>
+        <input class="input" id="forgot-email" name="email" type="email" autocomplete="username" inputmode="email" required>
+      </div>
+      <p class="a-form-error" id="forgot-msg" role="status"></p>
+      <button class="btn btn--paper btn--lg btn--block" type="submit" id="forgot-submit">Enviar link</button>
+      <button type="button" class="a-link" id="forgot-back">Volver al ingreso</button>
+    </form>
+  </div>
+</main>
+
+<!-- Nueva contraseña (al volver desde el link del email) -->
+<main class="a-auth" id="view-recovery" hidden>
+  <div class="a-auth__card">
+    <h1 class="a-auth__title">Creá tu contraseña nueva</h1>
+    <form id="recovery-form" class="a-stack" novalidate>
+      <div class="field">
+        <label class="field__label" for="new-pass">Contraseña nueva <small>(mínimo 8 caracteres)</small></label>
+        <div class="a-pass">
+          <input class="input" id="new-pass" type="password" autocomplete="new-password" minlength="8" required>
+          <button type="button" class="a-pass__toggle" data-toggle-pass="new-pass" aria-pressed="false">Mostrar</button>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field__label" for="new-pass-2">Repetila</label>
+        <input class="input" id="new-pass-2" type="password" autocomplete="new-password" minlength="8" required>
+      </div>
+      <p class="a-form-error" id="recovery-error" role="alert"></p>
+      <button class="btn btn--lens btn--lg btn--block" type="submit" id="recovery-submit">Guardar contraseña</button>
+    </form>
+  </div>
+</main>
+
+<!-- Panel -->
+<div class="a-app" id="view-app" hidden>
+  <header class="a-top">
+    <div class="wrap a-top__inner">
+      <a class="nav__logo a-top__logo" href="./" target="_blank" rel="noopener" aria-label="Ver la web (se abre en otra pestaña)">
+        <picture>
+          <source srcset="assets/logo-horizontal.webp" type="image/webp">
+          <img src="assets/logo-horizontal.png" width="720" height="234" alt="">
+        </picture>
+      </a>
+      <p class="a-top__who" id="who"></p>
+      <button type="button" class="btn btn--ghost btn--sm" id="logout">
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-logout"></use></svg>
+        <span>Salir</span>
+      </button>
+    </div>
+    <div class="wrap">
+      <div class="a-tabs" role="tablist" aria-label="Secciones del panel" id="tabs">
+        <button type="button" role="tab" id="tab-productos" aria-controls="panel" data-tab="productos">Productos</button>
+        <button type="button" role="tab" id="tab-servicios" aria-controls="panel" data-tab="servicios">Servicios</button>
+        <button type="button" role="tab" id="tab-barberos" aria-controls="panel" data-tab="barberos">Barberos</button>
+        <button type="button" role="tab" id="tab-horarios" aria-controls="panel" data-tab="horarios">Horarios</button>
+        <button type="button" role="tab" id="tab-gallery" aria-controls="panel" data-tab="gallery">Gallery</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap a-main">
+    <section id="panel" role="tabpanel" tabindex="-1" aria-labelledby="tab-productos"></section>
+  </main>
+</div>
+
+<!-- Confirmación -->
+<dialog class="a-dialog" id="confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-text">
+  <form method="dialog" class="a-dialog__box">
+    <h2 class="a-dialog__title" id="confirm-title"></h2>
+    <p class="a-muted" id="confirm-text"></p>
+    <div class="a-dialog__actions">
+      <button class="btn btn--ghost" value="cancel" id="confirm-cancel">Cancelar</button>
+      <button class="btn a-btn-danger" value="ok" id="confirm-ok">Borrar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Estado de guardado -->
+<div class="a-status" id="a-status" role="status" aria-live="polite" aria-atomic="true"></div>
+<div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>

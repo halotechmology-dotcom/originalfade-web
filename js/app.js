@@ -32,7 +32,7 @@
     shopFilter: 'Todo',
     cart: [],
     cartNotice: '',
-    zoneId: C.ZONAS_ENVIO[0].id,
+    zoneId: C.ENTREGAS[0].id,
     buyer: { name: '', address: '' },
     bk: { step: 1, barberId: null, serviceId: null, date: null, time: null, name: '', phone: '', sent: false }
   };
@@ -1058,7 +1058,8 @@
           };
         });
       }
-      if (data && C.ZONAS_ENVIO.some(function (z) { return z.id === data.zoneId; })) state.zoneId = data.zoneId;
+      // Carritos guardados con las zonas viejas (recoleta, caba…) pasan a "envío a domicilio"
+      if (data && data.zoneId) state.zoneId = data.zoneId === 'retiro' ? 'retiro' : 'envio';
     } catch (err) { /* sin localStorage o dato corrupto: carrito vacío */ }
   }
 
@@ -1099,8 +1100,7 @@
 
   function cartCount() { return state.cart.reduce(function (a, l) { return a + l.qty; }, 0); }
   function cartSubtotal() { return state.cart.reduce(function (a, l) { return a + l.qty * l.price; }, 0); }
-  function currentZone() { return C.ZONAS_ENVIO.find(function (z) { return z.id === state.zoneId; }) || C.ZONAS_ENVIO[0]; }
-  function zoneCost(z) { return Math.round(z.km * C.PRECIO_POR_KM); }
+  function currentZone() { return C.ENTREGAS.find(function (z) { return z.id === state.zoneId; }) || C.ENTREGAS[0]; }
 
   /* Devuelve true si se agregó. "btn" (opcional) muestra el estado "Agregado ✓" */
   function addToCart(p, size, btn) {
@@ -1168,9 +1168,8 @@
       oninput: function (e) { state.buyer.address = e.target.value; clearErr(e.target, cartUI.addrErr); renderTotals(); }
     });
     cartUI.zones = h('fieldset', { class: 'zones' },
-      h('legend', { class: 'label', text: 'Envío' }),
-      C.ZONAS_ENVIO.map(function (z) {
-        const cost = zoneCost(z);
+      h('legend', { class: 'label', text: 'Entrega' }),
+      C.ENTREGAS.map(function (z) {
         return h('label', { class: 'zone' },
           h('input', {
             type: 'radio', name: 'zone', value: z.id, checked: state.zoneId === z.id,
@@ -1179,12 +1178,12 @@
           h('span', { class: 'zone__box' },
             h('span', { class: 'zone__radio', 'aria-hidden': 'true' }),
             h('span', { class: 'zone__name', text: z.nombre }),
-            h('span', { class: 'zone__cost', text: cost ? money(cost) : 'Gratis' }),
-            h('span', { class: 'zone__eta', text: z.km ? z.km + ' km · ' + z.demora : z.demora })
+            h('span', { class: 'zone__cost', text: z.precio }),
+            h('span', { class: 'zone__eta', text: z.detalle })
           )
         );
       }),
-      h('p', { class: 'fineprint', text: 'Costo de envío estimado, se confirma por WhatsApp.' })
+      h('p', { class: 'fineprint', text: 'El envío se cobra aparte: según el pedido y el destino, te pasamos el costo por WhatsApp.' })
     );
     cartUI.form = h('div', { class: 'form-grid' },
       cartUI.zones,
@@ -1201,7 +1200,7 @@
   }
 
   function updateAddrLabel() {
-    const pickup = currentZone().km === 0;
+    const pickup = !currentZone().envio;
     mount(cartUI.addrLabel, 'Dirección y localidad ', pickup ? h('small', { text: '(opcional si retirás)' }) : null);
     if (pickup) clearErr(cartUI.addr, cartUI.addrErr);
   }
@@ -1253,31 +1252,32 @@
 
   function renderTotals() {
     if (!state.cart.length) return;
-    const z = currentZone(), cost = zoneCost(z), sub = cartSubtotal();
+    const z = currentZone(), sub = cartSubtotal();
     mount(cartUI.totals,
       h('div', { class: 'totals__row' }, h('span', { text: 'Subtotal' }), h('span', { text: money(sub) })),
-      h('div', { class: 'totals__row' }, h('span', { text: 'Envío · ' + z.nombre }), h('span', { text: cost ? money(cost) : 'Sin cargo' })),
-      h('div', { class: 'totals__row totals__row--big' }, h('span', { text: 'Total' }), h('span', { text: money(sub + cost) }))
+      h('div', { class: 'totals__row' }, h('span', { text: z.envio ? 'Envío a domicilio' : 'Retiro en el local' }), h('span', { text: z.envio ? 'Se cotiza por WhatsApp' : 'Sin cargo' })),
+      h('div', { class: 'totals__row totals__row--big' }, h('span', { text: z.envio ? 'Total sin envío' : 'Total' }), h('span', { text: money(sub) }))
     );
     cartUI.cta.href = waLink(orderMessage());
     if (!cartUI.totals.isConnected) mount($('#cart-foot'), cartUI.totals, cartUI.cta, cartUI.fine);
   }
 
   function orderMessage() {
-    const z = currentZone(), cost = zoneCost(z), sub = cartSubtotal();
+    const z = currentZone(), sub = cartSubtotal();
     const lines = state.cart.map(function (l) {
       return '• ' + l.qty + ' × ' + l.name + (l.size ? ' (talle ' + l.size + ')' : '') + ' — ' + money(l.qty * l.price);
     });
-    const address = state.buyer.address.trim() || (z.km === 0 ? 'Retiro en el local (' + C.DIRECCION + ')' : '');
+    const address = state.buyer.address.trim();
     return ['Hola ORIGINALFADE! Quiero hacer este pedido 🛒']
       .concat(lines)
       .concat([
         'Subtotal: ' + money(sub),
-        'Envío: ' + z.nombre + ' — ' + (cost ? money(cost) : 'Sin cargo') + ' (' + z.demora + ')',
-        'TOTAL: ' + money(sub + cost),
-        'Nombre: ' + state.buyer.name.trim(),
-        'Dirección: ' + address
-      ]).join('\n');
+        z.envio ? 'Entrega: Envío a domicilio (el costo lo coordinamos por WhatsApp)' : 'Entrega: Retiro en el local (' + C.DIRECCION + ')',
+        (z.envio ? 'TOTAL sin envío: ' : 'TOTAL: ') + money(sub),
+        'Nombre: ' + state.buyer.name.trim()
+      ])
+      .concat(address ? ['Dirección: ' + address] : [])
+      .join('\n');
   }
 
   function onOrderClick(e) {
@@ -1287,7 +1287,7 @@
       cartUI.nameErr.textContent = 'Escribí tu nombre para el pedido.';
       firstBad = cartUI.name;
     }
-    if (currentZone().km > 0 && state.buyer.address.trim().length < 5) {
+    if (currentZone().envio && state.buyer.address.trim().length < 5) {
       cartUI.addr.setAttribute('aria-invalid', 'true');
       cartUI.addrErr.textContent = 'Escribí la dirección y la localidad para el envío.';
       firstBad = firstBad || cartUI.addr;

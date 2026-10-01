@@ -126,7 +126,7 @@ Abrilo con cualquier editor de texto. Ahí están, con comentarios:
 
 - **WHATSAPP**: número al que llegan turnos y pedidos (solo números, con 549: `5491158485270`).
 - **DIRECCION**, **EMAIL**, **INSTAGRAM_URL**, links de Google Maps y de reseñas.
-- **PRECIO_POR_KM** y **ZONAS_ENVIO**: el costo de envío que ve el cliente en el carrito.
+- **ENTREGAS**: las opciones del carrito (retiro en el local o envío a domicilio). El costo del envío no se carga: lo pasás por WhatsApp según el pedido y el destino.
 - **DIAS_A_MOSTRAR**: cuántos días para adelante se pueden reservar.
 
 Después de cambiarlo, publicá (punto 9).

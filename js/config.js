@@ -1,7 +1,7 @@
 /* ==========================================================================
    ORIGINALFADE · Configuración general
    Este es el ÚNICO archivo que hace falta tocar para cambiar datos de
-   contacto, la conexión a Supabase o las zonas de envío.
+   contacto, la conexión a Supabase o las opciones de entrega.
    ========================================================================== */
 
 window.OF_CONFIG = Object.freeze({
@@ -30,15 +30,12 @@ window.OF_CONFIG = Object.freeze({
   DIAS_A_MOSTRAR: 7,        // cuántos días hacia adelante se pueden reservar
   INTERVALO_MIN: 45,        // cada cuántos minutos arranca un turno
 
-  /* --- Envíos -------------------------------------------------------------
-     Costo = km × PRECIO_POR_KM. Es un estimado: se confirma por WhatsApp. */
-  PRECIO_POR_KM: 750,
-  ZONAS_ENVIO: Object.freeze([
-    { id: 'retiro',   nombre: 'Retiro en el local',     km: 0,  demora: 'Te avisamos cuando esté listo' },
-    { id: 'recoleta', nombre: 'Recoleta y alrededores', km: 3,  demora: '24 h' },
-    { id: 'caba',     nombre: 'CABA',                   km: 8,  demora: '24-48 h' },
-    { id: 'gba',      nombre: 'GBA',                    km: 22, demora: '48-72 h' },
-    { id: 'interior', nombre: 'Interior',               km: 60, demora: '3-5 días' }
+  /* --- Entrega -----------------------------------------------------------
+     La web no calcula el envío: la barbería pasa el costo por WhatsApp
+     según el pedido y el destino. */
+  ENTREGAS: Object.freeze([
+    { id: 'retiro', nombre: 'Retiro en el local', detalle: 'Te avisamos cuando esté listo', precio: 'Gratis',     envio: false },
+    { id: 'envio',  nombre: 'Envío a domicilio',  detalle: 'Según el destino',             precio: 'A cotizar',  envio: true }
   ]),
 
   /* --- Carrito ----------------------------------------------------------- */

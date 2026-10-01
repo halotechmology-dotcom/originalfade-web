@@ -2,11 +2,13 @@
    ORIGINALFADE · Panel de administración (registro PRODUCT)
    Mismos tokens y familia que el sitio, en versión sobria:
    sin halftone, sin grano, sin rotaciones, sin reveals.
-   Barlow Condensed solo en el título de página y en las pestañas.
-   --lente solo para el botón principal de cada vista y la pestaña activa.
+   Permanent Marker solo en el título de página y en las pestañas.
+   Blanco y negro; el botón principal de cada vista va relleno en blanco.
    ========================================================================== */
 
 body.admin { padding-bottom: 0; }
+/* Que el foco nunca quede tapado por la barra de arriba ni la de acciones */
+html:has(> body.admin) { scroll-padding-top: 8.5rem; scroll-padding-bottom: 5.5rem; }
 body.admin::before { display: none; }              /* sin grano */
 .admin .sticker-chip, .admin .sticker-badge { transform: none; }
 
@@ -36,9 +38,10 @@ body.admin::before { display: none; }              /* sin grano */
 .a-auth__logo { justify-self: start; }
 .a-auth__logo img { height: 2.5rem; }
 .a-auth__title {
-  font: 800 italic clamp(2rem, 7vw, 2.5rem)/0.95 var(--f-display);
-  letter-spacing: -0.01em;
+  font: 400 clamp(26px, 6vw, 34px)/1.1 var(--f-display);
+  letter-spacing: var(--ls-title);
   text-transform: uppercase;
+  color: var(--sticker);
 }
 .a-stack { display: grid; gap: var(--s-3); }
 .a-stack[hidden] { display: none; }
@@ -52,7 +55,7 @@ body.admin::before { display: none; }              /* sin grano */
   min-height: 2.75rem; padding: 0 0.75rem;
   border: 0; border-radius: var(--r-sm);
   background: transparent; color: var(--texto-2);
-  font: 600 0.875rem/1 var(--f-body);
+  font: 700 12px/1 var(--f-body); letter-spacing: 1px; text-transform: uppercase;
 }
 .a-pass__toggle[aria-pressed="true"] { color: var(--sticker); }
 @media (hover: hover) and (pointer: fine) { .a-pass__toggle:hover { color: var(--sticker); background: var(--tinta-3); } }
@@ -81,6 +84,7 @@ body.admin::before { display: none; }              /* sin grano */
   border-bottom: 1px solid var(--linea);
 }
 .a-top__inner { display: flex; align-items: center; gap: var(--s-2); min-height: 4rem; }
+.a-top__logo { display: inline-flex; align-items: center; min-height: 2.75rem; }
 .a-top__logo img { height: 2rem; }
 .a-top__who {
   margin-left: auto;
@@ -90,7 +94,7 @@ body.admin::before { display: none; }              /* sin grano */
 }
 @media (max-width: 30rem) { .a-top__who { display: none; } .a-top__inner .btn { margin-left: auto; } }
 
-/* Pestañas: nombres en Barlow Condensed, activa con subrayado --lente */
+/* Pestañas: nombres en Permanent Marker, activa con subrayado blanco */
 .a-tabs {
   display: flex; gap: 0.25rem;
   overflow-x: auto; scrollbar-width: none;
@@ -104,8 +108,8 @@ body.admin::before { display: none; }              /* sin grano */
   min-height: 3rem; padding: 0 0.9rem;
   border: 0; background: none;
   color: var(--texto-2);
-  font: 700 italic 1.0625rem/1 var(--f-display);
-  letter-spacing: 0.04em;
+  font: 400 16px/1 var(--f-display);
+  letter-spacing: var(--ls-title);
   text-transform: uppercase;
 }
 .a-tabs [role="tab"]::after {
@@ -116,27 +120,36 @@ body.admin::before { display: none; }              /* sin grano */
 .a-tabs [role="tab"][aria-selected="true"] { color: var(--sticker); }
 .a-tabs [role="tab"][aria-selected="true"]::after { transform: scaleX(1); }
 @media (hover: hover) and (pointer: fine) { .a-tabs [role="tab"]:hover { color: var(--sticker); } }
+/* En celular entran las cuatro sin tener que deslizar */
+@media (max-width: 35rem) {
+  .a-tabs { gap: 0; justify-content: space-between; padding-inline: calc(var(--gutter) - 0.25rem); }
+  .a-tabs [role="tab"] { padding-inline: 0.25rem; font-size: 13px; }
+  .a-tabs [role="tab"]::after { left: 0.25rem; right: 0.25rem; }
+}
 
 .a-main { padding-block: var(--s-5) var(--s-6); }
 .a-main:focus, #panel:focus { outline: none; }
 
 /* Encabezado de cada vista */
 .a-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2); margin-bottom: var(--s-4); }
-.a-head__title { font: 600 1.375rem/1.2 var(--f-body); }
+.a-head__title { font: 400 clamp(22px, 5.4vw, 30px)/1.05 var(--f-display); letter-spacing: var(--ls-title); text-transform: uppercase; color: var(--sticker); text-wrap: balance; }
 .a-toolbar { display: flex; flex-wrap: wrap; gap: var(--s-1); margin-bottom: var(--s-3); }
 .a-toolbar .input { flex: 1 1 14rem; }
 .a-toolbar select.input { flex: 0 1 12rem; }
 
 /* Listas */
 .a-list { list-style: none; display: grid; gap: 1px; background: var(--linea); border-radius: var(--r); overflow: hidden; }
-.a-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--s-2); align-items: center; padding: 0.625rem 0.75rem; background: var(--tinta-2); }
+.a-row { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--s-2); align-items: center; padding: 0.625rem 0.75rem; background: var(--tinta-2); }
 .a-row__thumb { width: 3.5rem; height: 3.5rem; border-radius: var(--r-sm); background: var(--tinta-3); overflow: hidden; display: grid; place-items: center; color: var(--texto-3); }
 .a-row__thumb img { width: 100%; height: 100%; object-fit: cover; }
 .a-row__main { min-width: 0; display: grid; gap: 0.15rem; }
 .a-row__open { all: unset; cursor: pointer; font-weight: 600; overflow-wrap: anywhere; }
+/* Toda la fila abre el formulario; los botones de orden quedan por encima */
+.a-row__open::after { content: ""; position: absolute; inset: 0; }
+@media (hover: hover) and (pointer: fine) { .a-row:has(.a-row__open:hover) { background: var(--tinta-3); } }
 .a-row__open:focus-visible { outline: 2px solid var(--lente); outline-offset: 2px; border-radius: 2px; }
 .a-row__meta { font-size: 0.875rem; color: var(--texto-2); }
-.a-row__actions { display: flex; gap: 0.25rem; }
+.a-row__actions { position: relative; z-index: 1; display: flex; gap: 0.25rem; }
 .a-badges { display: flex; flex-wrap: wrap; gap: 0.3rem; }
 .a-badge {
   display: inline-flex; align-items: center;
@@ -184,15 +197,17 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 /* Talles como chips editables */
 .a-chips { list-style: none; display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .a-chip { display: inline-flex; align-items: center; gap: 0.25rem; padding-left: 0.7rem; border: 1.5px solid var(--linea); border-radius: 999px; font-weight: 600; }
-.a-chip button { width: 2.75rem; height: 2.5rem; border: 0; background: none; color: var(--texto-2); border-radius: 999px; }
+.a-chip button { width: 2.75rem; height: 2.75rem; border: 0; background: none; color: var(--texto-2); border-radius: 999px; }
 @media (hover: hover) and (pointer: fine) { .a-chip button:hover { color: var(--error); } }
 
 /* Fotos */
 .a-photos { list-style: none; display: grid; gap: var(--s-2); grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); }
 .a-photo { position: relative; border-radius: var(--r); overflow: hidden; background: var(--tinta-3); }
 .a-photo img { width: 100%; aspect-ratio: 1; object-fit: cover; }
-.a-photo__main { position: absolute; top: 0.4rem; left: 0.4rem; }
-.a-photo__actions { display: flex; justify-content: space-between; background: var(--tinta-2); }
+.a-photo__main { position: absolute; top: 0.4rem; left: 0.4rem; padding: 0.3rem 0.5rem; border-radius: 999px; background: var(--sticker); color: var(--tinta); font: 700 11px/1 var(--f-body); letter-spacing: 1px; text-transform: uppercase; }
+.a-photo__actions { display: grid; grid-template-columns: repeat(2, 1fr); background: var(--tinta-2); }
+.a-photo__actions .icon-btn { width: 100%; border-radius: 0; }
+@media (min-width: 40rem) { .a-photos { grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr)); } .a-photo__actions { grid-template-columns: repeat(4, 1fr); } }
 .a-progress { width: 100%; height: 4px; appearance: none; border: 0; background: var(--tinta-3); border-radius: 2px; overflow: hidden; }
 .a-progress::-webkit-progress-bar { background: var(--tinta-3); }
 .a-progress::-webkit-progress-value { background: var(--lente); }
@@ -206,7 +221,11 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
   background: var(--tinta);
   border-top: 1px solid var(--linea);
 }
-.a-actions .a-btn-danger { margin-right: auto; }
+.a-actions .btn { flex: 1 1 0; }
+@media (min-width: 40rem) { .a-actions .btn { flex: 0 0 auto; min-width: 9rem; } }
+
+/* Zona de borrado al final del formulario */
+.a-danger { display: grid; justify-items: start; gap: var(--s-1); margin-top: var(--s-5); padding-top: var(--s-4); border-top: 1px solid var(--linea); }
 
 .a-btn-danger { --btn-bg: transparent; --btn-fg: var(--error); --btn-bd: var(--error); }
 @media (hover: hover) and (pointer: fine) { .a-btn-danger:hover:not([disabled]) { --btn-bg: oklch(0.74 0.15 25 / 0.12); } }
@@ -215,8 +234,12 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .a-hours { display: grid; gap: 1px; background: var(--linea); border-radius: var(--r); overflow: hidden; }
 .a-hours__row { display: grid; grid-template-columns: 7rem auto 1fr; gap: var(--s-2); align-items: center; padding: 0.625rem 0.75rem; background: var(--tinta-2); }
 .a-hours__times { display: flex; gap: var(--s-1); align-items: center; flex-wrap: wrap; }
-.a-hours__times .input { width: 7.5rem; }
-@media (max-width: 34rem) { .a-hours__row { grid-template-columns: 1fr auto; } .a-hours__times { grid-column: 1 / -1; } }
+.a-hours__times { flex-wrap: nowrap; }
+.a-hours__times .input { width: 7.5rem; min-width: 0; flex: 0 1 7.5rem; }
+.a-hours__times[hidden], .a-hours__closed[hidden] { display: none; }
+.a-hours__closed { color: var(--texto-3); font-weight: 600; min-height: 2.75rem; display: flex; align-items: center; }
+.admin .input:disabled { opacity: 0.45; cursor: not-allowed; }
+@media (max-width: 34rem) { .a-hours__row { grid-template-columns: 1fr auto; } .a-hours__when { grid-column: 1 / -1; } }
 
 /* ---------- Diálogo de confirmación ---------- */
 .a-dialog { padding: 0; border: 0; border-radius: var(--r); background: var(--tinta-2); width: min(26rem, calc(100% - 2rem)); }
@@ -227,7 +250,10 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 /* ---------- Estado de guardado (abajo, inline) ---------- */
 .a-status {
   position: fixed; z-index: 90;
-  left: 50%; bottom: calc(1rem + env(safe-area-inset-bottom));
+  /* Por encima de la barra de acciones y sin atrapar toques */
+  left: 50%; bottom: calc(5.25rem + env(safe-area-inset-bottom));
+  max-width: calc(100vw - 2rem);
+  pointer-events: none;
   transform: translate(-50%, 0.5rem);
   opacity: 0; visibility: hidden;
   display: inline-flex; align-items: center; gap: 0.5rem;

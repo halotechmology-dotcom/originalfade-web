@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <script>document.documentElement.className = 'js';</script>
 
-<title>ORIGINALFADE · Gallery &amp; Barber Shop en Recoleta, CABA</title>
-<meta name="description" content="ORIGINALFADE, Gallery &amp; Barber Shop en Azcuénaga 1850, Recoleta (CABA). Fade, clásico, diseño y navaja. Reservá tu turno online, confirmalo por WhatsApp y mirá la ropa de la casa.">
+<title>ORIGINALFADE · Barbería y streetwear en Recoleta, CABA</title>
+<meta name="description" content="ORIGINALFADE, barbería y streetwear en Azcuénaga 1850, Recoleta (CABA). Fade, clásico, diseño y navaja. Reservá tu turno online, confirmalo por WhatsApp y mirá la ropa de la casa.">
 <!-- Dominio: si la web se publica con otro dominio, reemplazá "https://originalfade-web.vercel.app" en este archivo -->
 <link rel="canonical" href="https://originalfade-web.vercel.app/">
-<meta name="theme-color" content="#0f0d09">
+<meta name="theme-color" content="#000000">
 <meta name="format-detection" content="telephone=no">
 
 <link rel="icon" href="assets/favicon.ico" sizes="48x48">
@@ -20,7 +20,7 @@
 <meta property="og:type" content="website">
 <meta property="og:locale" content="es_AR">
 <meta property="og:site_name" content="ORIGINALFADE">
-<meta property="og:title" content="ORIGINALFADE · Gallery &amp; Barber Shop en Recoleta">
+<meta property="og:title" content="ORIGINALFADE · Barbería en Recoleta">
 <meta property="og:description" content="Cortes que se ven bacanos. Reservá tu turno en Azcuénaga 1850 y confirmalo por WhatsApp.">
 <meta property="og:url" content="https://originalfade-web.vercel.app/">
 <meta property="og:image" content="https://originalfade-web.vercel.app/assets/og-image.png">
@@ -28,15 +28,17 @@
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="La mascota de ORIGINALFADE junto a una cuchilla de máquina y la palabra FADE">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="ORIGINALFADE · Gallery &amp; Barber Shop en Recoleta">
+<meta name="twitter:title" content="ORIGINALFADE · Barbería en Recoleta">
 <meta name="twitter:description" content="Cortes que se ven bacanos. Reservá tu turno y confirmalo por WhatsApp.">
 <meta name="twitter:image" content="https://originalfade-web.vercel.app/assets/og-image.png">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://nnlagwtasskctaqllhag.supabase.co" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,600;1,700;1,800&family=Barlow:wght@400;500;600&family=Permanent+Marker&display=swap">
-<link rel="preload" as="image" type="image/webp" href="assets/joya-mascota-560.webp" imagesrcset="assets/joya-mascota-560.webp 560w, assets/joya-mascota.webp 939w" imagesizes="(min-width: 56rem) 30rem, 196px" fetchpriority="high">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Work+Sans:wght@400;600;700&display=swap">
+<link rel="preload" as="image" type="image/webp" href="assets/hero-fachada-1280.webp" media="(max-width: 47.99rem)">
+<link rel="preload" as="image" type="image/webp" href="assets/hero-fachada.webp" media="(min-width: 48rem)">
+<link rel="preload" as="image" type="image/webp" href="assets/joya-mascota-560.webp" imagesrcset="assets/joya-mascota-560.webp 560w, assets/joya-mascota.webp 939w" imagesizes="(min-width: 56rem) 20rem, 196px" fetchpriority="high">
 <link rel="stylesheet" href="css/styles.css">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
@@ -96,7 +98,6 @@
         <li><a href="#servicios" data-view-link="servicios">Servicios</a></li>
         <li><a href="#turnos" data-view-link="turnos">Turnos</a></li>
         <li><a href="#tienda" data-view-link="tienda">Tienda</a></li>
-        <li><a href="#gallery" data-view-link="gallery">Gallery</a></li>
         <li><a href="#contacto" data-view-link="contacto">Contacto</a></li>
       </ul>
       <span class="nav__indicator" id="nav-indicator" aria-hidden="true"></span>
@@ -124,10 +125,9 @@
       <li style="--i:1"><a href="#servicios" data-view-link="servicios">Servicios</a></li>
       <li style="--i:2"><a href="#turnos" data-view-link="turnos">Turnos</a></li>
       <li style="--i:3"><a href="#tienda" data-view-link="tienda">Tienda</a></li>
-      <li style="--i:4"><a href="#gallery" data-view-link="gallery">Gallery</a></li>
-      <li style="--i:5"><a href="#contacto" data-view-link="contacto">Contacto</a></li>
+      <li style="--i:4"><a href="#contacto" data-view-link="contacto">Contacto</a></li>
     </ul>
-    <div class="mmenu__foot" style="--i:6">
+    <div class="mmenu__foot" style="--i:5">
       <a class="btn btn--lens btn--lg btn--block" href="#turnos">Reservar turno</a>
       <p class="mmenu__meta">Azcuénaga 1850, Recoleta · <span data-status-mirror>Consultando horario…</span></p>
     </div>
@@ -139,7 +139,8 @@
   <!-- ============================== INICIO ============================ -->
   <section class="view" id="inicio" data-view aria-labelledby="hero-title">
     <div class="hero">
-      <div class="dots dots--hero" aria-hidden="true"></div>
+      <!-- Fondo: la fachada en blanco y negro con degradé (assets/hero-fachada*.webp) -->
+      <div class="hero__bg" aria-hidden="true"></div>
       <div class="wrap hero__grid">
         <div class="hero__copy">
           <div class="hero__meta" data-rise style="--i:0">
@@ -149,23 +150,18 @@
               <span id="status-text">Consultando horario…</span>
             </p>
           </div>
-          <h1 class="hero__title" id="hero-title">
-            <span class="hero__line" data-rise style="--i:1">Cortes que se ven</span>
-            <span class="hero__big" data-rise style="--i:2">bacanos</span>
-          </h1>
-          <p class="hero__lede" data-rise style="--i:3">Barbería y ropa de la casa en Recoleta. Elegí barbero, día y hora, y cerrás tu turno por WhatsApp en un minuto.</p>
-          <div class="hero__ctas" data-rise style="--i:4">
+          <h1 class="hero__title" id="hero-title" data-rise style="--i:1">Cortes que se ven bacanos</h1>
+          <p class="hero__lede" data-rise style="--i:2">Barbería y streetwear en Recoleta. Reservá online, elegí barbero y llegá con el turno cerrado.</p>
+          <div class="hero__ctas" data-rise style="--i:3">
             <a class="btn btn--lens btn--lg" href="#turnos">Reservar turno</a>
             <a class="btn btn--ghost btn--lg" href="#tienda">Ver tienda</a>
           </div>
         </div>
 
         <figure class="hero__stage">
-          <span class="hero__spot" aria-hidden="true"></span>
-          <span class="hero__floor" aria-hidden="true"></span>
           <span class="hero__parallax" id="hero-jewel">
             <picture>
-              <source type="image/webp" srcset="assets/joya-mascota-560.webp 560w, assets/joya-mascota.webp 939w" sizes="(min-width: 56rem) 30rem, 196px">
+              <source type="image/webp" srcset="assets/joya-mascota-560.webp 560w, assets/joya-mascota.webp 939w" sizes="(min-width: 56rem) 20rem, 196px">
               <img class="hero__jewel" src="assets/joya-mascota.jpg" width="939" height="1148" fetchpriority="high" decoding="async"
                    alt="Dije de ORIGINALFADE: la mascota hecha joya, con pelo de piedras negras, cara en tonos rosados y lentes dorados con lunas">
             </picture>
@@ -289,26 +285,6 @@
     </div>
   </section>
 
-  <!-- ============================= GALLERY ============================ -->
-  <section class="view" id="gallery" data-view aria-labelledby="gallery-title" hidden>
-    <div class="block block--wall">
-      <div class="wrap">
-        <header class="sec-head" data-reveal>
-          <h2 class="h2" id="gallery-title" tabindex="-1">Gallery</h2>
-          <p class="lede">Acá los cortes se cuelgan como obra. Cada uno lleva la firma de quien lo hizo.</p>
-        </header>
-        <div class="chips" id="cortes-filters" role="group" aria-label="Filtrar cortes por barbero" hidden></div>
-        <div id="cortes-root" aria-busy="true">
-          <div class="works" aria-hidden="true">
-            <span class="skel" style="aspect-ratio:4/5"></span>
-            <span class="skel" style="aspect-ratio:4/5"></span>
-            <span class="skel" style="aspect-ratio:4/5"></span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <!-- ============================= CONTACTO =========================== -->
   <section class="view" id="contacto" data-view aria-labelledby="contacto-title" hidden>
     <div class="block">
@@ -380,7 +356,7 @@
 <footer class="footer" id="footer">
   <div class="dots dots--band" aria-hidden="true"></div>
   <div class="wrap">
-    <p class="footer__word" aria-hidden="true">Original Fade</p>
+    <p class="footer__word" aria-hidden="true">OriginalFade</p>
     <div class="footer__grid">
       <div class="footer__col">
         <p class="footer__k">Visitanos</p>
@@ -408,7 +384,7 @@
     </div>
     <div class="footer__legal">
       <p>© <span id="year">2026</span> ORIGINALFADE</p>
-      <p>Gallery &amp; Barber Shop · Recoleta, CABA</p>
+      <p>Barbería y streetwear · Recoleta, CABA</p>
     </div>
   </div>
 </footer>
@@ -436,33 +412,6 @@
 <!-- Detalle de producto -->
 <dialog class="sheet" id="product-dialog" aria-labelledby="pd-name">
   <div class="sheet__scroll" id="pd-root"></div>
-</dialog>
-
-<!-- Ver un corte en grande -->
-<dialog class="lightbox" id="lightbox" aria-labelledby="lb-title">
-  <div class="lightbox__inner">
-    <div class="lightbox__top">
-      <p class="lightbox__count" id="lb-count"></p>
-      <button class="icon-btn" type="button" data-close aria-label="Cerrar foto">
-        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"></use></svg>
-      </button>
-    </div>
-    <figure class="lightbox__figure" id="lb-figure">
-      <img id="lb-img" alt="">
-    </figure>
-    <div class="lightbox__bottom">
-      <button class="icon-btn icon-btn--line" type="button" id="lb-prev" aria-label="Foto anterior">
-        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-chev-l"></use></svg>
-      </button>
-      <div class="lightbox__caption">
-        <p class="lightbox__title" id="lb-title"></p>
-        <p class="lightbox__by" id="lb-by"></p>
-      </div>
-      <button class="icon-btn icon-btn--line" type="button" id="lb-next" aria-label="Foto siguiente">
-        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-chev-r"></use></svg>
-      </button>
-    </div>
-  </div>
 </dialog>
 
 <p class="sr-only" id="announce" aria-live="polite" aria-atomic="true"></p>

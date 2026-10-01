@@ -1,8 +1,9 @@
 /* ==========================================================================
    ORIGINALFADE · Sitio público
-   Lee servicios, barberos, horarios, productos y galería desde Supabase.
+   Lee servicios, barberos, horarios y productos desde Supabase.
    Turnos y pedidos se cierran por WhatsApp (no hay pagos online).
-   Cada sección del menú es una pantalla propia (#inicio, #turnos, ...).
+   Cada sección del menú es una pantalla propia (#inicio, #servicios, #turnos,
+   #tienda, #contacto).
    Regla de oro: los textos que vienen de la base se insertan siempre con
    textContent (a través de OF.h), nunca como HTML.
    ========================================================================== */
@@ -23,9 +24,9 @@
      Estado
      ------------------------------------------------------------------------ */
   const state = {
-    services: [], barbers: [], week: null, products: [], gallery: [],
+    services: [], barbers: [], week: null, products: [],
     // null = cargando · true = ok · false = error
-    ok: { services: null, barbers: null, hours: null, products: null, gallery: null },
+    ok: { services: null, barbers: null, hours: null, products: null },
     shopFilter: 'Todo',
     cart: [],
     cartNotice: '',
@@ -61,10 +62,6 @@
     products: function () {
       return sb.from('products').select('id,name,description,category,price,sizes,images,in_stock,sort_order,created_at')
         .eq('visible', true).order('sort_order', { ascending: true }).order('created_at', { ascending: false });
-    },
-    gallery: function () {
-      return sb.from('gallery').select('id,image_url,title,barber,sort_order,created_at')
-        .eq('visible', true).order('sort_order', { ascending: true }).order('created_at', { ascending: false });
     }
   };
 
@@ -88,10 +85,9 @@
 
   function renderFor(key) {
     if (key === 'services') { renderServices(); renderBooking(); }
-    if (key === 'barbers') { renderBarbers(); renderBooking(); if (state.ok.gallery) renderGallery(); }
+    if (key === 'barbers') { renderBarbers(); renderBooking(); }
     if (key === 'hours') { renderStatus(); renderHours(); renderFooterHours(); renderBooking(); }
     if (key === 'products') { renderShop(); if (state.ok.products) revalidateCart(); }
-    if (key === 'gallery') renderGallery();
   }
 
   function setBusy(root, key) { root.setAttribute('aria-busy', String(state.ok[key] === null)); }
@@ -1394,202 +1390,7 @@
   }
 
   /* ========================================================================
-     7. Gallery (fotos de cortes) y lightbox
-     ======================================================================== */
-  let lbIndex = 0;
-  let lbList = [];
-  let cortesFilter = 'Todos';
-
-  function renderGallery() {
-    const root = $('#cortes-root'), filters = $('#cortes-filters');
-    setBusy(root, 'gallery');
-    if (state.ok.gallery === null) return;
-    if (state.ok.gallery === false) {
-      filters.hidden = true;
-      mount(root, h('div', { class: 'notice', role: 'alert' },
-        h('p', { text: 'No pudimos cargar las fotos de los cortes. Mientras tanto, los últimos están en nuestro Instagram.' }),
-        h('div', { class: 'notice__actions' },
-          h('a', { class: 'btn btn--primary', href: C.INSTAGRAM_URL, target: '_blank', rel: 'noopener' }, icon('ig'), 'Ver Instagram'),
-          h('button', { type: 'button', class: 'btn btn--ghost', onclick: function () { loadOne('gallery'); } }, 'Reintentar'))
-      ));
-      return;
-    }
-    if (!state.gallery.length) {
-      filters.hidden = true;
-      mount(root, emptyWall());
-      observeReveals(root);
-      return;
-    }
-
-    // Filtro por barbero (según las fotos cargadas)
-    const names = [];
-    state.gallery.forEach(function (g) { const b = (g.barber || '').trim(); if (b && names.indexOf(b) === -1) names.push(b); });
-    if (cortesFilter !== 'Todos' && names.indexOf(cortesFilter) === -1) cortesFilter = 'Todos';
-    filters.hidden = names.length < 2;
-    mount(filters, ['Todos'].concat(names).map(function (n) {
-      return h('button', {
-        type: 'button', class: 'chip', 'aria-pressed': String(cortesFilter === n),
-        onclick: function () { cortesFilter = n; renderGallery(); }
-      }, n);
-    }));
-
-    lbList = state.gallery.filter(function (g) { return cortesFilter === 'Todos' || (g.barber || '').trim() === cortesFilter; });
-    mount(root, h('ul', { class: 'works', 'aria-label': 'Cortes' }, lbList.map(function (g, i) {
-      const title = g.title || 'Corte';
-      return h('li', { class: 'work', 'data-reveal': '', style: { '--d': i % 4 } },
-        h('button', {
-          type: 'button', class: 'work__frame',
-          'aria-label': 'Ver en grande: ' + title + (g.barber ? ', por ' + g.barber : ''),
-          onclick: function (e) { openLightbox(i, e.currentTarget); }
-        }, h('span', { class: 'frame', style: { display: 'block' } },
-          h('img', { src: OF.resolveImg(g.image_url), alt: title, width: '800', height: '1000', loading: 'lazy', decoding: 'async' }))),
-        h('p', { class: 'plate' },
-          h('span', { class: 'plate__title', text: title, style: { display: 'block' } }),
-          g.barber ? h('span', { class: 'plate__by', text: 'por ' + g.barber }) : null
-        )
-      );
-    })));
-    observeReveals(root);
-  }
-
-  /* Sin fotos: la joya como obra principal y tres marcos esperando */
-  function emptyWall() {
-    return h('div', { class: 'wall', 'data-reveal': '' },
-      h('figure', { class: 'wall__main', style: { margin: '0' } },
-        h('span', { class: 'frame', style: { display: 'block' } },
-          h('picture', null,
-            h('source', { type: 'image/webp', srcset: 'assets/joya-mascota-560.webp 560w, assets/joya-mascota.webp 939w', sizes: '(min-width: 56rem) 26rem, 80vw' }),
-            h('img', { src: 'assets/joya-mascota.jpg', width: '939', height: '1148', loading: 'lazy', decoding: 'async', alt: 'Dije de la mascota de ORIGINALFADE, hecho de piedras' })
-          )
-        ),
-        h('figcaption', { class: 'plate' },
-          h('span', { class: 'plate__title', text: 'Pieza N.º 001', style: { display: 'block' } }),
-          h('span', { class: 'plate__by', text: 'Original Fade' })
-        )
-      ),
-      h('div', { class: 'wall__side' },
-        h('ul', { class: 'wall__empties', 'aria-hidden': 'true' }, [0, 1, 2].map(function () {
-          return h('li', { class: 'frame wall__empty' },
-            h('img', { src: 'assets/mascota-bn.png', width: '640', height: '840', alt: '', loading: 'lazy', decoding: 'async' }));
-        })),
-        h('div', null,
-          h('p', { class: 'wall__title', text: 'Próxima exposición: nuestros cortes' }),
-          h('p', { class: 'wall__text', text: 'Mientras tanto, pasá por el Instagram.' }),
-          h('a', { class: 'btn btn--primary btn--lg', href: C.INSTAGRAM_URL, target: '_blank', rel: 'noopener' }, icon('ig'), 'Ver Instagram')
-        )
-      )
-    );
-  }
-
-  function barberByName(name) {
-    const n = String(name || '').trim().toLowerCase();
-    if (!n) return null;
-    return state.barbers.find(function (b) { return String(b.name).trim().toLowerCase() === n; }) || null;
-  }
-
-  /* Abre desde la miniatura: escala 0.96 → 1 con el origen en la foto tocada */
-  function openLightbox(i, originEl) {
-    lbIndex = i;
-    showLightbox();
-    openDialog($('#lightbox'));
-    const fig = $('#lb-figure');
-    if (!fig.animate) return;
-    if (OF.reducedMotion.matches) {
-      fig.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: 'ease' });
-      return;
-    }
-    if (originEl) {
-      const r = originEl.getBoundingClientRect(), f = fig.getBoundingClientRect();
-      fig.style.transformOrigin = (r.left + r.width / 2 - f.left) + 'px ' + (r.top + r.height / 2 - f.top) + 'px';
-    }
-    fig.animate([{ opacity: 0, transform: 'scale(0.96)' }, { opacity: 1, transform: 'none' }], { duration: 220, easing: EASE_OUT });
-  }
-
-  function showLightbox() {
-    const list = lbList, g = list[lbIndex];
-    if (!g) return;
-    const img = $('#lb-img');
-    img.setAttribute('data-loading', '');
-    img.onload = function () { img.removeAttribute('data-loading'); };
-    img.onerror = function () { img.removeAttribute('data-loading'); };
-    img.src = OF.resolveImg(g.image_url);
-    img.alt = g.title || 'Corte de ORIGINALFADE';
-    $('#lb-title').textContent = g.title || 'Corte';
-    $('#lb-by').textContent = g.barber ? 'por ' + g.barber : '';
-    $('#lb-count').textContent = (lbIndex + 1) + ' / ' + list.length;
-    const single = list.length < 2;
-    $('#lb-prev').disabled = single;
-    $('#lb-next').disabled = single;
-  }
-
-  function stepLightbox(dir) {
-    const n = lbList.length;
-    if (n < 2) return;
-    lbIndex = (lbIndex + dir + n) % n;
-    showLightbox();
-  }
-
-  function initLightbox() {
-    const lb = $('#lightbox');
-    $('#lb-prev').addEventListener('click', function () { stepLightbox(-1); });
-    $('#lb-next').addEventListener('click', function () { stepLightbox(1); });
-    lb.addEventListener('keydown', function (e) {
-      if (e.key === 'ArrowLeft') { e.preventDefault(); stepLightbox(-1); }
-      if (e.key === 'ArrowRight') { e.preventDefault(); stepLightbox(1); }
-    });
-    const fig = $('#lb-figure'), img = $('#lb-img');
-    fig.addEventListener('click', function (e) { if (e.target === fig) closeDialog(lb); });
-
-    /* Swipe táctil: sigue el dedo 1:1; decide la dirección después de 10px
-       y al soltar decide por el signo de la velocidad */
-    let sw = null;
-    fig.addEventListener('pointerdown', function (e) {
-      if (e.pointerType === 'mouse' || lbList.length < 2) return;
-      sw = { x: e.clientX, y: e.clientY, id: e.pointerId, decided: false, dx: 0, samples: [{ x: e.clientX, t: e.timeStamp }] };
-    });
-    fig.addEventListener('pointermove', function (e) {
-      if (!sw || e.pointerId !== sw.id) return;
-      const dx = e.clientX - sw.x, dy = e.clientY - sw.y;
-      if (!sw.decided) {
-        if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
-        if (Math.abs(dy) > Math.abs(dx)) { sw = null; return; }
-        sw.decided = true;
-        fig.setPointerCapture(e.pointerId);
-      }
-      sw.dx = dx;
-      if (!OF.reducedMotion.matches) img.style.transform = 'translateX(' + dx + 'px)';
-      sw.samples.push({ x: e.clientX, t: e.timeStamp });
-      while (sw.samples.length > 2 && e.timeStamp - sw.samples[0].t > 100) sw.samples.shift();
-    });
-    function swipeEnd(e) {
-      if (!sw || (e && e.pointerId !== sw.id)) return;
-      const s = sw; sw = null;
-      if (!s.decided) return;
-      const a = s.samples[0], b = s.samples[s.samples.length - 1];
-      const v = b.t > a.t ? (b.x - a.x) / (b.t - a.t) : 0; // px/ms
-      const W = fig.clientWidth || window.innerWidth;
-      let dir = 0;
-      if (Math.abs(v) > 0.05) dir = v < 0 ? 1 : -1;
-      else if (Math.abs(s.dx) > W * 0.25) dir = s.dx < 0 ? 1 : -1;
-      img.style.transform = '';
-      if (OF.reducedMotion.matches || !img.animate) { if (dir) stepLightbox(dir); return; }
-      if (!dir) {
-        img.animate([{ transform: 'translateX(' + s.dx + 'px)' }, { transform: 'none' }], { duration: 220, easing: EASE_OUT });
-        return;
-      }
-      // Sale desde donde quedó el dedo, entra la siguiente desde el otro lado
-      const out = img.animate([{ transform: 'translateX(' + s.dx + 'px)', opacity: 1 }, { transform: 'translateX(' + (-dir * W * 0.6) + 'px)', opacity: 0 }], { duration: 180, easing: EASE_OUT });
-      out.onfinish = function () {
-        stepLightbox(dir);
-        img.animate([{ transform: 'translateX(' + (dir * 40) + 'px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 220, easing: EASE_OUT });
-      };
-    }
-    fig.addEventListener('pointerup', swipeEnd);
-    fig.addEventListener('pointercancel', swipeEnd);
-  }
-
-  /* ========================================================================
-     8. Barberos
+     7. Barberos
      ======================================================================== */
   function renderBarbers() {
     const root = $('#barbers-root');
@@ -1630,16 +1431,15 @@
   }
 
   /* ========================================================================
-     9. Pantallas (una sección por vez), navegación y menú mobile
+     8. Pantallas (una sección por vez), navegación y menú mobile
      ======================================================================== */
-  const VIEWS = ['inicio', 'servicios', 'turnos', 'tienda', 'gallery', 'contacto'];
-  const ALIASES = { barberos: 'servicios', cortes: 'gallery' };
+  const VIEWS = ['inicio', 'servicios', 'turnos', 'tienda', 'contacto'];
+  const ALIASES = { barberos: 'servicios' };
   const TITLES = {
-    inicio: 'ORIGINALFADE · Gallery & Barber Shop en Recoleta, CABA',
+    inicio: 'ORIGINALFADE · Barbería y streetwear en Recoleta, CABA',
     servicios: 'Servicios y precios · ORIGINALFADE',
     turnos: 'Reservá tu turno · ORIGINALFADE',
     tienda: 'Tienda · ORIGINALFADE',
-    gallery: 'Gallery · ORIGINALFADE',
     contacto: 'Contacto y horarios · ORIGINALFADE'
   };
   let currentView = null;
@@ -1822,7 +1622,7 @@
     const hide = footerVisible || currentView === 'turnos' || currentView === 'contacto' ||
       $('#cart').hasAttribute('data-open') ||
       document.documentElement.hasAttribute('data-menu-open') ||
-      $('#lightbox').open || $('#product-dialog').open;
+      $('#product-dialog').open;
     float.toggleAttribute('data-hidden', !!hide);
   }
   function initFloat() {
@@ -1888,7 +1688,7 @@
   }
 
   /* ========================================================================
-     10. Arranque
+     9. Arranque
      ======================================================================== */
   function init() {
     initStaticLinks();
@@ -1896,14 +1696,13 @@
     initRouter();
     initReveals();
     initDialogs();
-    initLightbox();
     initCart();
     initBookingNav();
     initFloat();
     initParallax();
 
     sb = createClient();
-    ['hours', 'services', 'barbers', 'products', 'gallery'].forEach(loadOne);
+    ['hours', 'services', 'barbers', 'products'].forEach(loadOne);
 
     // Cada minuto: estado abierto/cerrado, día de hoy y horarios que ya pasaron
     setInterval(function () {

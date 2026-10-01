@@ -2,6 +2,7 @@
    ORIGINALFADE · Sitio público
    Lee servicios, barberos, horarios, productos y galería desde Supabase.
    Turnos y pedidos se cierran por WhatsApp (no hay pagos online).
+   Cada sección del menú es una pantalla propia (#inicio, #turnos, ...).
    Regla de oro: los textos que vienen de la base se insertan siempre con
    textContent (a través de OF.h), nunca como HTML.
    ========================================================================== */
@@ -16,6 +17,7 @@
 
   const MSG_CONSULTA = 'Hola ORIGINALFADE! Quería hacer una consulta.';
   const EASE_OUT = 'cubic-bezier(0.23, 1, 0.32, 1)';
+  const FINE_POINTER = window.matchMedia('(hover: hover) and (pointer: fine)');
 
   /* ------------------------------------------------------------------------
      Estado
@@ -87,7 +89,7 @@
   function renderFor(key) {
     if (key === 'services') { renderServices(); renderBooking(); }
     if (key === 'barbers') { renderBarbers(); renderBooking(); if (state.ok.gallery) renderGallery(); }
-    if (key === 'hours') { renderStatus(); renderHours(); renderBooking(); }
+    if (key === 'hours') { renderStatus(); renderHours(); renderFooterHours(); renderBooking(); }
     if (key === 'products') { renderShop(); if (state.ok.products) revalidateCart(); }
     if (key === 'gallery') renderGallery();
   }
@@ -99,7 +101,7 @@
     return h('div', { class: 'notice', role: 'alert' },
       h('p', { text: text }),
       h('div', { class: 'notice__actions' },
-        waButton('Escribinos por WhatsApp', 'btn btn--primary'),
+        waButton('Escribinos por WhatsApp', 'btn btn--lens'),
         retryKeys ? h('button', {
           type: 'button', class: 'btn btn--ghost',
           onclick: function () { retryKeys.forEach(loadOne); }
@@ -114,22 +116,31 @@
 
   function priceText(n) { return Number(n) > 0 ? money(n) : 'a consultar'; }
 
+  /* Anuncio para lectores de pantalla */
+  function announce(text) {
+    const el = $('#announce');
+    el.textContent = '';
+    requestAnimationFrame(function () { el.textContent = text; });
+  }
+
   /* ========================================================================
      2. Estado del local y horarios
      ======================================================================== */
   function renderStatus() {
-    const box = $('#status'), text = $('#status-text'), foot = $('#footer-status');
+    const box = $('#status'), text = $('#status-text');
+    const mirrors = $$('[data-status-mirror]');
     if (!state.week) {
       if (state.ok.hours === false) {
         text.textContent = 'Horarios por WhatsApp';
         box.dataset.open = 'unknown';
+        mirrors.forEach(function (m) { m.textContent = 'Consultá horarios por WhatsApp'; });
       }
       return;
     }
     const st = OF.storeStatus(state.week);
     box.dataset.open = String(st.open);
     text.textContent = st.text;
-    if (foot) foot.textContent = st.text;
+    mirrors.forEach(function (m) { m.textContent = st.text; });
   }
 
   function renderHours() {
@@ -153,8 +164,32 @@
     }));
   }
 
+  /* Resumen corto para el footer: agrupa días seguidos con el mismo horario */
+  function renderFooterHours() {
+    const list = $('#footer-hours');
+    if (!state.week) {
+      if (state.ok.hours === false) mount(list, h('li', { text: 'Consultá por WhatsApp' }));
+      return;
+    }
+    const order = [1, 2, 3, 4, 5, 6, 0];
+    const hourText = function (m) { return m % 60 ? OF.fmtMinutes(m) : String(Math.floor(m / 60)); };
+    const same = function (a, b) { return a.closed === b.closed && a.open === b.open && a.close === b.close; };
+    const groups = [];
+    order.forEach(function (dow) {
+      const d = state.week[dow], last = groups[groups.length - 1];
+      if (last && same(state.week[last.days[last.days.length - 1]], d)) last.days.push(dow);
+      else groups.push({ days: [dow] });
+    });
+    mount(list, groups.map(function (g) {
+      const d = state.week[g.days[0]];
+      const first = OF.capitalize(OF.DIAS[g.days[0]]);
+      const label = g.days.length === 1 ? first : first + ' a ' + OF.DIAS[g.days[g.days.length - 1]];
+      return h('li', { text: label + ': ' + (d.closed ? 'cerrado' : hourText(d.open) + ' a ' + hourText(d.close)) });
+    }));
+  }
+
   /* ========================================================================
-     3. Servicios (cartel de precios)
+     3. Servicios (pizarra de precios)
      ======================================================================== */
   function renderServices() {
     const root = $('#services-root');
@@ -165,25 +200,26 @@
       return;
     }
     if (!state.services.length) {
-      mount(root, h('div', { class: 'card notice' },
+      mount(root, h('div', { class: 'notice' },
         h('p', { text: 'Estamos actualizando la lista de servicios. Consultanos precios por WhatsApp.' }),
-        h('div', { class: 'notice__actions' }, waButton('Escribinos', 'btn btn--primary'))
+        h('div', { class: 'notice__actions' }, waButton('Escribinos', 'btn btn--lens'))
       ));
       return;
     }
-    mount(root, h('div', { class: 'svc-grid' }, state.services.map(function (s, i) {
-      return h('article', { class: 'card svc', 'data-reveal': '', style: { '--d': i } },
-        h('h3', { class: 'svc__name', text: s.name }),
-        s.description ? h('p', { class: 'svc__desc', text: s.description }) : null,
-        h('p', { class: 'svc__meta' },
-          h('span', { class: 'svc__dur', text: s.duration_min + ' min' }),
-          h('span', { class: 'svc__price', text: Number(s.price) > 0 ? money(s.price) : 'Precio por WhatsApp' })
+    mount(root, h('ul', { class: 'board' }, state.services.map(function (s, i) {
+      return h('li', { class: 'brow', 'data-reveal': '', style: { '--d': i } },
+        h('div', { class: 'brow__head' },
+          h('h3', { class: 'brow__name', text: s.name }),
+          h('span', { class: 'brow__leader', 'aria-hidden': 'true' }),
+          h('span', { class: 'tag' }, icon('clock'), s.duration_min + ' min'),
+          h('p', { class: 'brow__price', text: Number(s.price) > 0 ? money(s.price) : 'Consultá' })
         ),
+        s.description ? h('p', { class: 'brow__desc', text: s.description }) : null,
         h('button', {
-          type: 'button', class: 'btn btn--primary btn--lg btn--block',
+          type: 'button', class: 'link-arrow brow__cta',
           'aria-label': 'Reservar ' + s.name,
           onclick: function () { bookFromService(s.id); }
-        }, 'Reservar este servicio')
+        }, 'Reservar', icon('arrow-r'))
       );
     })));
     observeReveals(root);
@@ -274,9 +310,9 @@
     advanceTimer = setTimeout(function () { goStep(firstPending()); }, OF.reducedMotion.matches ? 60 : 220);
   }
 
+  /* Lleva a la pantalla de Turnos */
   function scrollToBooking() {
-    const el = $('#turnos');
-    el.scrollIntoView({ behavior: OF.reducedMotion.matches ? 'auto' : 'smooth', block: 'start' });
+    goToView('turnos');
   }
 
   function bookFromService(serviceId) {
@@ -326,7 +362,7 @@
       nav.back.hidden = true; nav.next.hidden = true;
       mount(stage, h('div', { class: 'notice' },
         h('p', { text: 'La reserva online no está disponible en este momento. Escribinos y te damos turno.' }),
-        h('div', { class: 'notice__actions' }, waButton('Pedir turno por WhatsApp', 'btn btn--primary', 'Hola ORIGINALFADE! Quiero reservar un turno 💈'))
+        h('div', { class: 'notice__actions' }, waButton('Pedir turno por WhatsApp', 'btn btn--lens', 'Hola ORIGINALFADE! Quiero reservar un turno 💈'))
       ));
       return;
     }
@@ -368,7 +404,7 @@
     }
     panel.animate(
       [{ opacity: 0, transform: 'translateX(' + (dir * 22) + 'px)' }, { opacity: 1, transform: 'none' }],
-      { duration: 240, easing: EASE_OUT }
+      { duration: 220, easing: EASE_OUT }
     );
   }
 
@@ -406,7 +442,7 @@
     );
   }
 
-  /* Resumen corto de lo elegido (en mobile el ticket aparece recién al final) */
+  /* Resumen corto de lo elegido (en mobile el ticket no se muestra) */
   function chosenChips() {
     const bk = state.bk, svc = bkService(), out = [];
     if (bk.step > 1 && bk.barberId) out.push(bkBarberName());
@@ -618,7 +654,7 @@
         h('p', { class: 'label', id: 'bk-msg-label', text: 'Tu mensaje' }),
         h('p', { class: 'bubble', 'aria-labelledby': 'bk-msg-label', text: bookingMessage() }),
         h('a', {
-          class: 'btn btn--primary btn--lg btn--block', href: waLink(bookingMessage()), target: '_blank', rel: 'noopener',
+          class: 'btn btn--lens btn--lg btn--block', href: waLink(bookingMessage()), target: '_blank', rel: 'noopener',
           onclick: onConfirmBooking
         }, icon('wa'), 'Confirmar por WhatsApp'),
         h('p', { class: 'confirm__note' },
@@ -760,23 +796,39 @@
     const list = state.products.filter(function (p) {
       return state.shopFilter === 'Todo' || (p.category || 'Otros').trim() === state.shopFilter;
     });
-    mount(root, h('div', { class: 'pgrid' }, list.map(productCard)));
+    // Con varios productos, el primero se destaca a doble columna en desktop
+    const featured = state.shopFilter === 'Todo' && list.length >= 5;
+    mount(root, h('div', { class: 'pgrid' + (featured ? ' pgrid--featured' : '') }, list.map(productCard)));
   }
 
   function emptyShop() {
-    return h('div', { class: 'card empty', 'data-reveal': '' },
-      h('div', { class: 'empty__art' },
+    return h('div', { class: 'empty-wide', 'data-reveal': '' },
+      h('span', { class: 'frame empty-wide__art' },
         h('picture', null,
-          h('source', { srcset: 'assets/mascota-bn.webp', type: 'image/webp' }),
-          h('img', { src: 'assets/mascota-bn.png', width: '640', height: '840', alt: '', loading: 'lazy', decoding: 'async' })
+          h('source', { srcset: 'assets/mascota-sticker.webp', type: 'image/webp' }),
+          h('img', { src: 'assets/mascota-sticker.jpg', width: '1200', height: '1200', alt: 'Sticker de la mascota de ORIGINALFADE', loading: 'lazy', decoding: 'async' })
         )
       ),
       h('div', null,
-        h('p', { class: 'empty__title', text: 'Muy pronto: nuevo drop' }),
-        h('p', { class: 'empty__text', text: 'Estamos preparando la ropa de la casa. Seguinos en Instagram para enterarte cuando salga.' }),
-        h('a', { class: 'btn btn--primary', href: C.INSTAGRAM_URL, target: '_blank', rel: 'noopener' }, icon('ig'), 'Seguinos en Instagram')
+        h('p', { class: 'empty-wide__title', text: 'Nuevo drop en camino' }),
+        h('p', { class: 'empty-wide__text', text: 'Enterate primero en Instagram.' }),
+        h('a', { class: 'btn btn--primary btn--lg', href: C.INSTAGRAM_URL, target: '_blank', rel: 'noopener' }, icon('ig'), 'Seguinos en Instagram')
       )
     );
+  }
+
+  /* Botón con estado "Agregado ✓" (se cruzan dos etiquetas con opacidad) */
+  function addButtonContent(label) {
+    return h('span', { class: 'btn__swap' },
+      h('span', null, icon('plus'), label),
+      h('span', { 'aria-hidden': 'true' }, icon('check'), 'Agregado')
+    );
+  }
+
+  function isNew(p) {
+    if (!p.created_at) return false;
+    const age = Date.now() - new Date(p.created_at).getTime();
+    return age >= 0 && age < 21 * 24 * 60 * 60 * 1000;
   }
 
   function productCard(p) {
@@ -787,22 +839,36 @@
 
     let cta;
     if (out) cta = h('button', { type: 'button', class: 'btn btn--ghost btn--sm btn--block pcard__cta', disabled: true }, 'Sin stock');
-    else if (sizes.length > 1) cta = h('button', { type: 'button', class: 'btn btn--primary btn--sm btn--block pcard__cta', onclick: open, 'aria-label': 'Elegir talle de ' + p.name }, 'Elegir talle');
+    else if (sizes.length > 1) cta = h('button', { type: 'button', class: 'btn btn--ghost btn--sm btn--block pcard__cta', onclick: open, 'aria-label': 'Elegir talle de ' + p.name }, 'Elegir talle');
     else cta = h('button', {
-      type: 'button', class: 'btn btn--primary btn--sm btn--block pcard__cta', 'aria-label': 'Agregar ' + p.name + ' al carrito',
-      onclick: function () { addToCart(p, sizes[0] || ''); }
-    }, icon('plus'), 'Agregar');
+      type: 'button', class: 'btn btn--ghost btn--sm btn--block pcard__cta', 'aria-label': 'Agregar ' + p.name + ' al carrito',
+      onclick: function (e) { addToCart(p, sizes[0] || '', e.currentTarget); }
+    }, addButtonContent('Agregar'));
 
-    return h('article', { class: 'card card--flush pcard', 'data-out': out ? '' : null },
-      h('div', { class: 'pcard__media' },
-        out ? h('span', { class: 'badge pcard__badge', text: 'Sin stock' }) : null,
-        imgs.length ? carousel(imgs, p.name, open) : h('div', { class: 'noimg', onclick: open }, icon('image'))
-      ),
+    const badges = h('div', { class: 'pcard__badges' },
+      out ? h('span', { class: 'sticker-badge', text: 'Sin stock' }) : null,
+      !out && isNew(p) ? h('span', { class: 'sticker-badge', text: 'Nuevo' }) : null
+    );
+
+    let media;
+    if (imgs.length) {
+      // Mouse: segunda foto en crossfade al pasar por encima. Touch: carrusel deslizable.
+      const stack = h('div', { class: 'pcard__stack', onclick: open, 'aria-hidden': 'true' },
+        h('img', { src: imgs[0], alt: '', width: '800', height: '1000', loading: 'lazy', decoding: 'async' }),
+        imgs[1] ? h('img', { class: 'pcard__alt', src: imgs[1], alt: '', width: '800', height: '1000', loading: 'lazy', decoding: 'async' }) : null
+      );
+      media = [stack, h('div', { class: 'pcard__carousel' }, carousel(imgs, p.name, open))];
+    } else {
+      media = [h('div', { class: 'noimg', onclick: open }, icon('image'))];
+    }
+
+    return h('article', { class: 'pcard', 'data-out': out ? '' : null },
+      h('div', { class: 'pcard__media' }, badges, media),
       h('div', { class: 'pcard__body' },
         p.category ? h('p', { class: 'pcard__cat', text: p.category }) : null,
         h('h3', { class: 'pcard__name' }, h('button', { type: 'button', class: 'pcard__open', onclick: open, text: p.name })),
         h('p', { class: 'pcard__price', text: priceText(p.price) }),
-        sizes.length ? h('p', { class: 'pcard__sizes', text: 'Talles: ' + sizes.join(' · ') }) : null,
+        sizes.length ? h('ul', { class: 'pcard__sizes', 'aria-label': 'Talles disponibles' }, sizes.map(function (s) { return h('li', { text: s }); })) : null,
         cta
       )
     );
@@ -823,7 +889,7 @@
       });
     }));
     if (imgs.length < 2) return track;
-    const dots = h('div', { class: 'dots', 'aria-hidden': 'true' }, imgs.map(function (_, i) { return h('span', { 'data-on': i === 0 ? '' : null }); }));
+    const dots = h('div', { class: 'dots-nav', 'aria-hidden': 'true' }, imgs.map(function (_, i) { return h('span', { 'data-on': i === 0 ? '' : null }); }));
     let raf = 0;
     track.addEventListener('scroll', function () {
       cancelAnimationFrame(raf);
@@ -855,8 +921,8 @@
         const tr = media.querySelector('.carousel');
         const move = function (dir) { tr.scrollBy({ left: dir * tr.clientWidth, behavior: OF.reducedMotion.matches ? 'auto' : 'smooth' }); };
         media.append(
-          h('button', { type: 'button', class: 'pdetail__nav', 'data-dir': 'prev', 'aria-label': 'Foto anterior', onclick: function () { move(-1); } }, icon('chev-l')),
-          h('button', { type: 'button', class: 'pdetail__nav', 'data-dir': 'next', 'aria-label': 'Foto siguiente', onclick: function () { move(1); } }, icon('chev-r'))
+          h('button', { type: 'button', class: 'icon-btn pdetail__nav', 'data-dir': 'prev', 'aria-label': 'Foto anterior', onclick: function () { move(-1); } }, icon('chev-l')),
+          h('button', { type: 'button', class: 'icon-btn pdetail__nav', 'data-dir': 'next', 'aria-label': 'Foto siguiente', onclick: function () { move(1); } }, icon('chev-r'))
         );
       }
     } else {
@@ -879,7 +945,7 @@
       ? h('button', { type: 'button', class: 'btn btn--ghost btn--lg btn--block', disabled: true }, 'Sin stock')
       : h('button', {
         type: 'button', class: 'btn btn--primary btn--lg btn--block',
-        onclick: function () {
+        onclick: function (e) {
           let size = '';
           if (sizes.length) {
             const checked = dlg.querySelector('input[name="pd-size"]:checked');
@@ -891,13 +957,15 @@
             }
             size = checked.value;
           }
-          addToCart(p, size);
-          closeDialog(dlg);
+          const btn = e.currentTarget;
+          if (addToCart(p, size, btn)) {
+            setTimeout(function () { closeDialog(dlg); }, OF.reducedMotion.matches ? 300 : 650);
+          }
         }
-      }, icon('plus'), 'Agregar al carrito');
+      }, addButtonContent('Agregar al carrito'));
 
     mount($('#pd-root'),
-      h('button', { type: 'button', class: 'sheet__close', 'aria-label': 'Cerrar', onclick: function () { closeDialog(dlg); } }, icon('close')),
+      h('button', { type: 'button', class: 'icon-btn sheet__close', 'aria-label': 'Cerrar', onclick: function () { closeDialog(dlg); } }, icon('close')),
       h('div', { class: 'pdetail' },
         media,
         h('div', { class: 'pdetail__info' },
@@ -918,6 +986,7 @@
     if (typeof dlg.showModal === 'function') dlg.showModal();
     else dlg.setAttribute('open', '');
     document.documentElement.style.overflow = 'hidden';
+    updateFloat();
   }
   function closeDialog(dlg) {
     if (typeof dlg.close === 'function') dlg.close();
@@ -929,6 +998,7 @@
         if (!$$('dialog').some(function (d) { return d.open; }) && !$('#cart').hasAttribute('data-open')) {
           document.documentElement.style.overflow = '';
         }
+        updateFloat();
       });
       // Tocar el fondo cierra
       dlg.addEventListener('click', function (e) { if (e.target === dlg) closeDialog(dlg); });
@@ -998,10 +1068,11 @@
   function currentZone() { return C.ZONAS_ENVIO.find(function (z) { return z.id === state.zoneId; }) || C.ZONAS_ENVIO[0]; }
   function zoneCost(z) { return Math.round(z.km * C.PRECIO_POR_KM); }
 
-  function addToCart(p, size) {
+  /* Devuelve true si se agregó. "btn" (opcional) muestra el estado "Agregado ✓" */
+  function addToCart(p, size, btn) {
     const line = state.cart.find(function (l) { return l.id === p.id && l.size === size; });
     if (line) {
-      if (line.qty >= C.MAX_UNIDADES) { OF.toast('Llegaste al máximo de ' + C.MAX_UNIDADES + ' unidades de este producto.', { tone: 'error' }); return; }
+      if (line.qty >= C.MAX_UNIDADES) { OF.toast('Llegaste al máximo de ' + C.MAX_UNIDADES + ' unidades de este producto.', { tone: 'error' }); return false; }
       line.qty += 1;
     } else {
       state.cart.push({ id: p.id, size: size, qty: 1, name: p.name, price: Number(p.price) || 0, image: productImages(p)[0] || '' });
@@ -1010,31 +1081,39 @@
     saveCart();
     renderCart();
     bumpBadge();
-    OF.toast('Agregaste ' + p.name + (size ? ' (talle ' + size + ')' : ''), { actionLabel: 'Ver carrito', onAction: openCart });
+    if (btn) {
+      clearTimeout(btn._addedTimer);
+      btn.setAttribute('data-added', '');
+      btn._addedTimer = setTimeout(function () { btn.removeAttribute('data-added'); }, 1200);
+    }
+    announce('Agregaste ' + p.name + (size ? ' talle ' + size : '') + ' al carrito. Tenés ' + cartCount() + ' ' + OF.plural(cartCount(), 'producto', 'productos') + '.');
+    return true;
   }
 
   function changeQty(line, delta) {
     line.qty = Math.max(1, Math.min(C.MAX_UNIDADES, line.qty + delta));
     saveCart();
     renderCart();
+    bumpBadge();
   }
 
   function removeLine(line) {
     state.cart = state.cart.filter(function (l) { return l !== line; });
     saveCart();
     renderCart();
+    bumpBadge();
     OF.toast('Sacaste ' + line.name + ' del carrito.');
     const focusTarget = $('#cart-body .line__remove') || $('#cart .drawer__head [data-close]');
     if (focusTarget) focusTarget.focus();
   }
 
+  /* Contador: scale 0.9 → 1 con transition (no keyframes: se puede disparar seguido) */
   function bumpBadge() {
     const badge = $('#cart-count');
-    if (!badge.animate || OF.reducedMotion.matches) return;
-    badge.animate(
-      [{ transform: 'scale(1)' }, { transform: 'scale(1.35)' }, { transform: 'scale(1)' }],
-      { duration: 280, easing: EASE_OUT }
-    );
+    if (OF.reducedMotion.matches || badge.hidden) return;
+    badge.setAttribute('data-bump', '');
+    void badge.offsetWidth; // aplica el estado inicial sin transición
+    badge.removeAttribute('data-bump');
   }
 
   /* El formulario del carrito se arma una sola vez (para no perder lo que se escribe) */
@@ -1079,7 +1158,7 @@
       h('div', { class: 'field' }, cartUI.addrLabel, cartUI.addr, cartUI.addrErr)
     );
     cartUI.totals = h('div', { class: 'totals' });
-    cartUI.cta = h('a', { class: 'btn btn--primary btn--lg btn--block', href: '#', target: '_blank', rel: 'noopener', onclick: onOrderClick }, icon('wa'), 'Hacer pedido por WhatsApp');
+    cartUI.cta = h('a', { class: 'btn btn--lens btn--lg btn--block', href: '#', target: '_blank', rel: 'noopener', onclick: onOrderClick }, icon('wa'), 'Pedir por WhatsApp');
     cartUI.shopBtn = h('a', { class: 'btn btn--primary btn--lg btn--block', href: '#tienda', onclick: function () { closeCart(); } }, 'Ir a la tienda');
     cartUI.fine = h('p', { class: 'fineprint', text: 'Se abre WhatsApp con tu pedido armado. Ahí coordinamos pago y entrega.' });
 
@@ -1105,7 +1184,7 @@
 
     if (!state.cart.length) {
       mount(cartUI.lines, h('div', { class: 'cart-empty' },
-        h('span', { class: 'cart-empty__art' }, h('img', { src: 'assets/mascota-bn.png', width: '640', height: '840', alt: '', loading: 'lazy' })),
+        h('span', { class: 'frame' }, h('img', { src: 'assets/mascota-sticker.jpg', width: '1200', height: '1200', alt: '', loading: 'lazy' })),
         h('p', { text: 'Tu carrito está vacío.' })
       ));
       cartUI.form.hidden = true;
@@ -1189,7 +1268,7 @@
 
   /* ---------- Panel lateral: abrir / cerrar / arrastrar para cerrar ---------- */
   let cartReturnFocus = null;
-  const BACKGROUND = ['#nav', 'main', '.footer', '.wa-float'];
+  const BACKGROUND = ['#nav', '#mmenu', 'main', '.footer', '.wa-float'];
 
   function setBackgroundInert(on) {
     BACKGROUND.forEach(function (sel) {
@@ -1202,12 +1281,13 @@
   function openCart() {
     const drawer = $('#cart');
     if (drawer.hasAttribute('data-open')) return;
-    closeMenu();
+    closeMenu(false);
     cartReturnFocus = document.activeElement;
     drawer.setAttribute('data-open', '');
     $('#cart-open').setAttribute('aria-expanded', 'true');
     setBackgroundInert(true);
     document.documentElement.style.overflow = 'hidden';
+    updateFloat();
     requestAnimationFrame(function () {
       const target = $('.drawer__head [data-close]', drawer);
       if (target) target.focus({ preventScroll: true });
@@ -1221,6 +1301,7 @@
     $('#cart-open').setAttribute('aria-expanded', 'false');
     setBackgroundInert(false);
     document.documentElement.style.overflow = '';
+    updateFloat();
     if (cartReturnFocus && document.contains(cartReturnFocus)) cartReturnFocus.focus({ preventScroll: true });
     else $('#cart-open').focus({ preventScroll: true });
   }
@@ -1244,15 +1325,28 @@
     initDragToClose(drawer);
   }
 
-  /* Arrastrar a la derecha para cerrar: sigue el dedo 1:1 y decide con la velocidad */
+  /* Arrastrar a la derecha para cerrar:
+     - sigue el dedo 1:1 desde donde se agarró (incluso a mitad de animación)
+     - hacia la izquierda, más allá de abierto, resiste de forma progresiva
+     - al soltar cierra si va a > 0.5 px/ms hacia la derecha o recorrió > 35%
+     - la animación siguiente arranca desde la posición actual en pantalla */
   function initDragToClose(drawer) {
     const panel = $('#cart-panel'), scrim = $('.drawer__scrim', drawer);
-    let start = null, decided = false, x = 0, history = [], suppressClick = false;
+    let start = null, decided = false, x = 0, grabX = 0, samples = [], suppressClick = false;
+
+    function rubberband(overshoot, dimension) {
+      const c = 0.55;
+      return (overshoot * dimension * c) / (dimension + c * Math.abs(overshoot));
+    }
 
     panel.addEventListener('pointerdown', function (e) {
-      if (e.pointerType === 'mouse' || !drawer.hasAttribute('data-open')) return;
+      if (e.pointerType === 'mouse' || !drawer.hasAttribute('data-open') || OF.reducedMotion.matches) return;
+      // Posición real en pantalla (por si la animación de entrada todavía corre)
+      const m = new DOMMatrixReadOnly(getComputedStyle(panel).transform);
+      grabX = m.m41 || 0;
       start = { x: e.clientX, y: e.clientY, id: e.pointerId };
-      decided = false; x = 0; history = [{ x: 0, t: e.timeStamp }];
+      decided = false; x = grabX;
+      samples = [{ x: e.clientX, t: e.timeStamp }];
     });
 
     panel.addEventListener('pointermove', function (e) {
@@ -1260,16 +1354,18 @@
       const dx = e.clientX - start.x, dy = e.clientY - start.y;
       if (!decided) {
         if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
-        if (Math.abs(dy) > Math.abs(dx) || dx < 0) { start = null; return; } // es un scroll vertical
+        if (Math.abs(dy) > Math.abs(dx)) { start = null; return; } // es un scroll vertical
         decided = true;
         panel.setPointerCapture(e.pointerId);
         drawer.setAttribute('data-dragging', '');
       }
-      x = Math.max(0, dx);
+      const W = panel.offsetWidth;
+      const raw = grabX + dx;
+      x = raw >= 0 ? raw : rubberband(raw, W);
       panel.style.transform = 'translateX(' + x + 'px)';
-      scrim.style.opacity = String(Math.max(0, 1 - x / panel.offsetWidth));
-      history.push({ x: x, t: e.timeStamp });
-      if (history.length > 6) history.shift();
+      scrim.style.opacity = String(Math.max(0, Math.min(1, 1 - Math.max(0, x) / W)));
+      samples.push({ x: e.clientX, t: e.timeStamp });
+      while (samples.length > 2 && e.timeStamp - samples[0].t > 100) samples.shift();
     });
 
     function end(e) {
@@ -1279,13 +1375,16 @@
       if (!wasDragging) return;
       suppressClick = true;
       setTimeout(function () { suppressClick = false; }, 0);
-      const a = history[0], b = history[history.length - 1];
-      const velocity = b.t > a.t ? ((b.x - a.x) / (b.t - a.t)) * 1000 : 0; // px/s
-      const projected = x + (velocity / 1000) * 0.998 / (1 - 0.998);      // proyección de momentum
+      const a = samples[0], b = samples[samples.length - 1];
+      const velocity = b.t > a.t ? (b.x - a.x) / (b.t - a.t) : 0; // px/ms
+      const W = panel.offsetWidth;
+      const shouldClose = velocity > 0.5 || (x > W * 0.35 && velocity > -0.5);
+      // Volver a habilitar la transición y soltar el transform en el mismo cuadro:
+      // el navegador anima desde la posición actual hacia el destino.
       drawer.removeAttribute('data-dragging');
       panel.style.transform = '';
       scrim.style.opacity = '';
-      if (projected > panel.offsetWidth * 0.5) closeCart();
+      if (shouldClose) closeCart();
     }
     panel.addEventListener('pointerup', end);
     panel.addEventListener('pointercancel', end);
@@ -1295,7 +1394,7 @@
   }
 
   /* ========================================================================
-     7. Cortes (fotos de la tabla gallery) y lightbox
+     7. Gallery (fotos de cortes) y lightbox
      ======================================================================== */
   let lbIndex = 0;
   let lbList = [];
@@ -1305,16 +1404,19 @@
     const root = $('#cortes-root'), filters = $('#cortes-filters');
     setBusy(root, 'gallery');
     if (state.ok.gallery === null) return;
-    const igBtn = h('a', { class: 'btn btn--primary', href: C.INSTAGRAM_URL, target: '_blank', rel: 'noopener' }, icon('ig'), 'Ver Instagram');
-    if (state.ok.gallery === false || !state.gallery.length) {
+    if (state.ok.gallery === false) {
       filters.hidden = true;
-      mount(root, h('div', { class: 'card notice', 'data-reveal': '' },
-        h('p', { text: state.ok.gallery === false
-          ? 'No pudimos cargar las fotos de los cortes. Mientras tanto, los últimos están en nuestro Instagram.'
-          : 'Muy pronto vas a ver acá los cortes de la barbería. Mientras tanto, pasá por nuestro Instagram.' }),
-        h('div', { class: 'notice__actions' }, igBtn,
-          state.ok.gallery === false ? h('button', { type: 'button', class: 'btn btn--ghost', onclick: function () { loadOne('gallery'); } }, 'Reintentar') : null)
+      mount(root, h('div', { class: 'notice', role: 'alert' },
+        h('p', { text: 'No pudimos cargar las fotos de los cortes. Mientras tanto, los últimos están en nuestro Instagram.' }),
+        h('div', { class: 'notice__actions' },
+          h('a', { class: 'btn btn--primary', href: C.INSTAGRAM_URL, target: '_blank', rel: 'noopener' }, icon('ig'), 'Ver Instagram'),
+          h('button', { type: 'button', class: 'btn btn--ghost', onclick: function () { loadOne('gallery'); } }, 'Reintentar'))
       ));
+      return;
+    }
+    if (!state.gallery.length) {
+      filters.hidden = true;
+      mount(root, emptyWall());
       observeReveals(root);
       return;
     }
@@ -1332,26 +1434,51 @@
     }));
 
     lbList = state.gallery.filter(function (g) { return cortesFilter === 'Todos' || (g.barber || '').trim() === cortesFilter; });
-    mount(root, h('ul', { class: 'cgrid', 'aria-label': 'Fotos de cortes' }, lbList.map(function (g, i) {
+    mount(root, h('ul', { class: 'works', 'aria-label': 'Cortes' }, lbList.map(function (g, i) {
       const title = g.title || 'Corte';
-      const barber = barberByName(g.barber);
-      return h('li', { class: 'card card--flush ccard', 'data-reveal': '', style: { '--d': i % 4 } },
+      return h('li', { class: 'work', 'data-reveal': '', style: { '--d': i % 4 } },
         h('button', {
-          type: 'button', class: 'ccard__photo',
-          'aria-label': 'Ampliar foto: ' + title + (g.barber ? ', por ' + g.barber : ''),
-          onclick: function () { openLightbox(i); }
-        }, h('img', { src: OF.resolveImg(g.image_url), alt: title, width: '800', height: '1000', loading: 'lazy', decoding: 'async' })),
-        h('div', { class: 'ccard__body' },
-          h('p', { class: 'ccard__title', text: title }),
-          g.barber ? h('p', { class: 'ccard__by', text: g.barber }) : null,
-          barber ? h('button', {
-            type: 'button', class: 'btn btn--primary btn--sm btn--block',
-            onclick: function () { bookFromBarber(barber.id); }
-          }, 'Agendar con ' + barber.name) : null
+          type: 'button', class: 'work__frame',
+          'aria-label': 'Ver en grande: ' + title + (g.barber ? ', por ' + g.barber : ''),
+          onclick: function (e) { openLightbox(i, e.currentTarget); }
+        }, h('span', { class: 'frame', style: { display: 'block' } },
+          h('img', { src: OF.resolveImg(g.image_url), alt: title, width: '800', height: '1000', loading: 'lazy', decoding: 'async' }))),
+        h('p', { class: 'plate' },
+          h('span', { class: 'plate__title', text: title, style: { display: 'block' } }),
+          g.barber ? h('span', { class: 'plate__by', text: 'por ' + g.barber }) : null
         )
       );
     })));
     observeReveals(root);
+  }
+
+  /* Sin fotos: la joya como obra principal y tres marcos esperando */
+  function emptyWall() {
+    return h('div', { class: 'wall', 'data-reveal': '' },
+      h('figure', { class: 'wall__main', style: { margin: '0' } },
+        h('span', { class: 'frame', style: { display: 'block' } },
+          h('picture', null,
+            h('source', { type: 'image/webp', srcset: 'assets/joya-mascota-560.webp 560w, assets/joya-mascota.webp 939w', sizes: '(min-width: 56rem) 26rem, 80vw' }),
+            h('img', { src: 'assets/joya-mascota.jpg', width: '939', height: '1148', loading: 'lazy', decoding: 'async', alt: 'Dije de la mascota de ORIGINALFADE, hecho de piedras' })
+          )
+        ),
+        h('figcaption', { class: 'plate' },
+          h('span', { class: 'plate__title', text: 'Pieza N.º 001', style: { display: 'block' } }),
+          h('span', { class: 'plate__by', text: 'Original Fade' })
+        )
+      ),
+      h('div', { class: 'wall__side' },
+        h('ul', { class: 'wall__empties', 'aria-hidden': 'true' }, [0, 1, 2].map(function () {
+          return h('li', { class: 'frame wall__empty' },
+            h('img', { src: 'assets/mascota-bn.png', width: '640', height: '840', alt: '', loading: 'lazy', decoding: 'async' }));
+        })),
+        h('div', null,
+          h('p', { class: 'wall__title', text: 'Próxima exposición: nuestros cortes' }),
+          h('p', { class: 'wall__text', text: 'Mientras tanto, pasá por el Instagram.' }),
+          h('a', { class: 'btn btn--primary btn--lg', href: C.INSTAGRAM_URL, target: '_blank', rel: 'noopener' }, icon('ig'), 'Ver Instagram')
+        )
+      )
+    );
   }
 
   function barberByName(name) {
@@ -1360,10 +1487,22 @@
     return state.barbers.find(function (b) { return String(b.name).trim().toLowerCase() === n; }) || null;
   }
 
-  function openLightbox(i) {
+  /* Abre desde la miniatura: escala 0.96 → 1 con el origen en la foto tocada */
+  function openLightbox(i, originEl) {
     lbIndex = i;
     showLightbox();
     openDialog($('#lightbox'));
+    const fig = $('#lb-figure');
+    if (!fig.animate) return;
+    if (OF.reducedMotion.matches) {
+      fig.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: 'ease' });
+      return;
+    }
+    if (originEl) {
+      const r = originEl.getBoundingClientRect(), f = fig.getBoundingClientRect();
+      fig.style.transformOrigin = (r.left + r.width / 2 - f.left) + 'px ' + (r.top + r.height / 2 - f.top) + 'px';
+    }
+    fig.animate([{ opacity: 0, transform: 'scale(0.96)' }, { opacity: 1, transform: 'none' }], { duration: 220, easing: EASE_OUT });
   }
 
   function showLightbox() {
@@ -1398,17 +1537,55 @@
       if (e.key === 'ArrowLeft') { e.preventDefault(); stepLightbox(-1); }
       if (e.key === 'ArrowRight') { e.preventDefault(); stepLightbox(1); }
     });
-    const fig = $('#lb-figure');
+    const fig = $('#lb-figure'), img = $('#lb-img');
     fig.addEventListener('click', function (e) { if (e.target === fig) closeDialog(lb); });
-    // Deslizar para cambiar de foto
-    let sx = null, sy = 0;
-    fig.addEventListener('pointerdown', function (e) { sx = e.clientX; sy = e.clientY; });
-    fig.addEventListener('pointerup', function (e) {
-      if (sx === null) return;
-      const dx = e.clientX - sx, dy = e.clientY - sy;
-      sx = null;
-      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) stepLightbox(dx < 0 ? 1 : -1);
+
+    /* Swipe táctil: sigue el dedo 1:1; decide la dirección después de 10px
+       y al soltar decide por el signo de la velocidad */
+    let sw = null;
+    fig.addEventListener('pointerdown', function (e) {
+      if (e.pointerType === 'mouse' || lbList.length < 2) return;
+      sw = { x: e.clientX, y: e.clientY, id: e.pointerId, decided: false, dx: 0, samples: [{ x: e.clientX, t: e.timeStamp }] };
     });
+    fig.addEventListener('pointermove', function (e) {
+      if (!sw || e.pointerId !== sw.id) return;
+      const dx = e.clientX - sw.x, dy = e.clientY - sw.y;
+      if (!sw.decided) {
+        if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+        if (Math.abs(dy) > Math.abs(dx)) { sw = null; return; }
+        sw.decided = true;
+        fig.setPointerCapture(e.pointerId);
+      }
+      sw.dx = dx;
+      if (!OF.reducedMotion.matches) img.style.transform = 'translateX(' + dx + 'px)';
+      sw.samples.push({ x: e.clientX, t: e.timeStamp });
+      while (sw.samples.length > 2 && e.timeStamp - sw.samples[0].t > 100) sw.samples.shift();
+    });
+    function swipeEnd(e) {
+      if (!sw || (e && e.pointerId !== sw.id)) return;
+      const s = sw; sw = null;
+      if (!s.decided) return;
+      const a = s.samples[0], b = s.samples[s.samples.length - 1];
+      const v = b.t > a.t ? (b.x - a.x) / (b.t - a.t) : 0; // px/ms
+      const W = fig.clientWidth || window.innerWidth;
+      let dir = 0;
+      if (Math.abs(v) > 0.05) dir = v < 0 ? 1 : -1;
+      else if (Math.abs(s.dx) > W * 0.25) dir = s.dx < 0 ? 1 : -1;
+      img.style.transform = '';
+      if (OF.reducedMotion.matches || !img.animate) { if (dir) stepLightbox(dir); return; }
+      if (!dir) {
+        img.animate([{ transform: 'translateX(' + s.dx + 'px)' }, { transform: 'none' }], { duration: 220, easing: EASE_OUT });
+        return;
+      }
+      // Sale desde donde quedó el dedo, entra la siguiente desde el otro lado
+      const out = img.animate([{ transform: 'translateX(' + s.dx + 'px)', opacity: 1 }, { transform: 'translateX(' + (-dir * W * 0.6) + 'px)', opacity: 0 }], { duration: 180, easing: EASE_OUT });
+      out.onfinish = function () {
+        stepLightbox(dir);
+        img.animate([{ transform: 'translateX(' + (dir * 40) + 'px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 220, easing: EASE_OUT });
+      };
+    }
+    fig.addEventListener('pointerup', swipeEnd);
+    fig.addEventListener('pointercancel', swipeEnd);
   }
 
   /* ========================================================================
@@ -1427,9 +1604,10 @@
       return;
     }
     mount(root, h('ul', { class: 'crew' }, state.barbers.map(function (b, i) {
-      const photo = h('div', { class: 'barber__photo' });
+      const photo = h('span', { class: 'frame portrait' });
       const fallback = function () {
-        mount(photo, h('span', { class: 'barber__initial', 'aria-hidden': 'true', text: initialOf(b.name) }));
+        photo.classList.add('portrait--initial');
+        mount(photo, h('span', { class: 'portrait__initial', 'aria-hidden': 'true', text: initialOf(b.name) }));
       };
       if (b.photo_url) {
         const img = h('img', { src: OF.resolveImg(b.photo_url), alt: 'Foto de ' + b.name, width: '400', height: '400', loading: 'lazy', decoding: 'async' });
@@ -1439,12 +1617,12 @@
         fallback();
       }
       const first = OF.capitalize(String(b.name).toLowerCase());
-      return h('li', { class: 'card barber', 'data-reveal': '', style: { '--d': i } },
+      return h('li', { class: 'barber', 'data-reveal': '', style: { '--d': i } },
         photo,
         h('div', null,
           h('h3', { class: 'barber__name', text: b.name }),
           b.specialty ? h('p', { class: 'barber__spec', text: b.specialty }) : null,
-          h('button', { type: 'button', class: 'btn btn--primary btn--sm', onclick: function () { bookFromBarber(b.id); } }, 'Reservá con ' + first)
+          h('button', { type: 'button', class: 'link-arrow', onclick: function () { bookFromBarber(b.id); } }, 'Reservar con ' + first, icon('arrow-r'))
         )
       );
     })));
@@ -1452,56 +1630,236 @@
   }
 
   /* ========================================================================
-     9. Navegación, menú mobile y entradas al hacer scroll
+     9. Pantallas (una sección por vez), navegación y menú mobile
      ======================================================================== */
-  function closeMenu() {
-    const nav = $('#nav');
-    if (!nav.hasAttribute('data-menu-open')) return;
-    nav.removeAttribute('data-menu-open');
+  const VIEWS = ['inicio', 'servicios', 'turnos', 'tienda', 'gallery', 'contacto'];
+  const ALIASES = { barberos: 'servicios', cortes: 'gallery' };
+  const TITLES = {
+    inicio: 'ORIGINALFADE · Gallery & Barber Shop en Recoleta, CABA',
+    servicios: 'Servicios y precios · ORIGINALFADE',
+    turnos: 'Reservá tu turno · ORIGINALFADE',
+    tienda: 'Tienda · ORIGINALFADE',
+    gallery: 'Gallery · ORIGINALFADE',
+    contacto: 'Contacto y horarios · ORIGINALFADE'
+  };
+  let currentView = null;
+  let heroPlayed = false;
+
+  function viewFromHash() {
+    const id = decodeURIComponent(location.hash.slice(1));
+    if (VIEWS.indexOf(id) !== -1) return id;
+    if (ALIASES[id]) return ALIASES[id];
+    return null;
+  }
+
+  function goToView(id) {
+    if ('#' + id === location.hash) showView(id, { force: true });
+    else location.hash = id;
+  }
+
+  function showView(id, opts) {
+    opts = opts || {};
+    const first = currentView === null;
+    const changed = id !== currentView;
+    const view = document.getElementById(id);
+    if (!view) return;
+
+    if (changed) {
+      $$('[data-view]').forEach(function (v) { v.hidden = v.id !== id; });
+      currentView = id;
+      document.title = TITLES[id] || TITLES.inicio;
+    }
+
+    $$('[data-view-link]').forEach(function (a) {
+      if (a.getAttribute('data-view-link') === id) a.setAttribute('aria-current', 'page');
+      else a.removeAttribute('aria-current');
+    });
+    moveIndicator(!first);
+    closeMenu(false);
+
+    // Sub-ancla (#barberos) o arriba de todo
+    const sub = decodeURIComponent(location.hash.slice(1));
+    const anchor = sub && sub !== id ? document.getElementById(sub) : null;
+    if (anchor && view.contains(anchor)) anchor.scrollIntoView({ block: 'start' });
+    else if (changed || opts.force) window.scrollTo(0, 0);
+
+    if (changed && !first && view.animate) {
+      view.animate(OF.reducedMotion.matches
+        ? [{ opacity: 0 }, { opacity: 1 }]
+        : [{ opacity: 0, transform: 'translateY(12px)' }, { opacity: 1, transform: 'none' }],
+        { duration: OF.reducedMotion.matches ? 160 : 220, easing: EASE_OUT });
+    }
+
+    // Foco en el título de la pantalla (teclado y lectores de pantalla)
+    if (!first && opts.focus !== false) {
+      const heading = view.querySelector('h1, h2');
+      if (heading) {
+        if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
+        heading.focus({ preventScroll: true });
+      }
+    }
+
+    // La entrada del inicio se ve una sola vez
+    if (id === 'inicio' && !heroPlayed) {
+      heroPlayed = true;
+      setTimeout(function () { document.documentElement.classList.add('hero-done'); }, 1400);
+    }
+    updateFloat();
+  }
+
+  /* Subrayado de la sección activa: se desliza con transform (translateX + scaleX) */
+  function moveIndicator(animate) {
+    const bar = $('#nav-indicator');
+    const active = $('.nav__links a[aria-current="page"]');
+    if (!bar) return;
+    if (!active || !active.offsetParent) { bar.style.transform = 'translateX(0) scaleX(0)'; return; }
+    const holder = bar.parentElement.getBoundingClientRect();
+    const r = active.getBoundingClientRect();
+    const inset = 12; // el subrayado no toca los bordes del link
+    const left = r.left - holder.left + inset;
+    const width = Math.max(0, r.width - inset * 2);
+    if (!animate) bar.setAttribute('data-instant', '');
+    bar.style.transform = 'translateX(' + left + 'px) scaleX(' + (width / 100) + ')';
+    if (!animate) { void bar.offsetWidth; bar.removeAttribute('data-instant'); }
+  }
+
+  function initRouter() {
+    window.addEventListener('hashchange', function () {
+      const hash = location.hash.slice(1);
+      if (hash === 'contenido') { $('#contenido').focus(); return; }
+      showView(viewFromHash() || 'inicio');
+    });
+    // Tocar el link de la pantalla actual la lleva arriba
+    document.addEventListener('click', function (e) {
+      const a = e.target.closest('a[href^="#"]');
+      if (!a) return;
+      const target = a.getAttribute('href').slice(1);
+      if (target && ('#' + target) === location.hash) {
+        const id = VIEWS.indexOf(target) !== -1 ? target : ALIASES[target];
+        if (id) { e.preventDefault(); showView(id, { force: true }); }
+      }
+    });
+    window.addEventListener('resize', function () { moveIndicator(false); });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { moveIndicator(false); });
+
+    const initial = viewFromHash();
+    showView(initial || 'inicio', { focus: false });
+  }
+
+  function openMenu() {
+    const root = document.documentElement, burger = $('#burger');
+    root.setAttribute('data-menu-open', '');
+    burger.setAttribute('aria-expanded', 'true');
+    burger.setAttribute('aria-label', 'Cerrar menú');
+    ['main', '.footer', '.wa-float'].forEach(function (s) { const el = $(s); if (el) el.setAttribute('inert', ''); });
+    document.documentElement.style.overflow = 'hidden';
+    updateFloat();
+    requestAnimationFrame(function () {
+      const first = $('#mmenu a');
+      if (first) first.focus({ preventScroll: true });
+    });
+  }
+
+  function closeMenu(returnFocus) {
+    const root = document.documentElement;
+    if (!root.hasAttribute('data-menu-open')) return;
+    root.removeAttribute('data-menu-open');
     const burger = $('#burger');
     burger.setAttribute('aria-expanded', 'false');
     burger.setAttribute('aria-label', 'Abrir menú');
+    if (!$('#cart').hasAttribute('data-open')) {
+      ['main', '.footer', '.wa-float'].forEach(function (s) { const el = $(s); if (el) el.removeAttribute('inert'); });
+      document.documentElement.style.overflow = '';
+    }
+    updateFloat();
+    if (returnFocus) burger.focus();
   }
 
   function initNav() {
     const nav = $('#nav'), burger = $('#burger'), menu = $('#mmenu');
 
-    const onScroll = function () { nav.toggleAttribute('data-scrolled', window.scrollY > 8); };
+    // Más compacta después de 24px de scroll
+    let ticking = false;
+    const onScroll = function () {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(function () {
+        nav.toggleAttribute('data-compact', window.scrollY > 24);
+        ticking = false;
+      });
+    };
     window.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
 
     burger.addEventListener('click', function () {
-      const open = !nav.hasAttribute('data-menu-open');
-      nav.toggleAttribute('data-menu-open', open);
-      burger.setAttribute('aria-expanded', String(open));
-      burger.setAttribute('aria-label', open ? 'Cerrar menú' : 'Abrir menú');
+      if (document.documentElement.hasAttribute('data-menu-open')) closeMenu(true);
+      else openMenu();
     });
-    $$('a', menu).forEach(function (a) { a.addEventListener('click', closeMenu); });
+    // Tocar el fondo del menú (fuera de los links) lo cierra
+    menu.addEventListener('click', function (e) {
+      if (e.target === menu || e.target.classList.contains('mmenu__inner')) closeMenu(true);
+    });
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && nav.hasAttribute('data-menu-open')) { closeMenu(); burger.focus(); }
+      if (!document.documentElement.hasAttribute('data-menu-open')) return;
+      if (e.key === 'Escape') { e.preventDefault(); closeMenu(true); return; }
+      if (e.key !== 'Tab') return;
+      // Foco atrapado: botón del menú + links
+      const items = [burger].concat(OF.focusables(menu));
+      const idx = items.indexOf(document.activeElement);
+      if (e.shiftKey && (idx <= 0)) { e.preventDefault(); items[items.length - 1].focus(); }
+      else if (!e.shiftKey && idx === items.length - 1) { e.preventDefault(); items[0].focus(); }
+      else if (idx === -1) { e.preventDefault(); items[0].focus(); }
     });
-    document.addEventListener('click', function (e) {
-      if (nav.hasAttribute('data-menu-open') && !nav.contains(e.target)) closeMenu();
-    });
-    window.matchMedia('(min-width: 60rem)').addEventListener('change', closeMenu);
-
-    // Link activo según la sección visible
-    if ('IntersectionObserver' in window) {
-      const links = $$('.nav__links a, .mmenu a[href^="#"]');
-      const spy = new IntersectionObserver(function (entries) {
-        entries.forEach(function (entry) {
-          if (!entry.isIntersecting) return;
-          const id = '#' + entry.target.id;
-          links.forEach(function (a) {
-            if (a.getAttribute('href') === id) a.setAttribute('aria-current', 'true');
-            else a.removeAttribute('aria-current');
-          });
-        });
-      }, { rootMargin: '-45% 0px -50% 0px' });
-      $$('main > section').forEach(function (s) { spy.observe(s); });
-    }
+    window.matchMedia('(min-width: 64rem)').addEventListener('change', function () { closeMenu(false); moveIndicator(false); });
   }
 
+  /* ---------- Botón flotante de WhatsApp: se oculta cuando molesta ---------- */
+  let footerVisible = false;
+  function updateFloat() {
+    const float = $('#wa-float');
+    if (!float) return;
+    // En Turnos y Contacto ya hay un botón de WhatsApp propio: el flotante sobra
+    const hide = footerVisible || currentView === 'turnos' || currentView === 'contacto' ||
+      $('#cart').hasAttribute('data-open') ||
+      document.documentElement.hasAttribute('data-menu-open') ||
+      $('#lightbox').open || $('#product-dialog').open;
+    float.toggleAttribute('data-hidden', !!hide);
+  }
+  function initFloat() {
+    if (!('IntersectionObserver' in window)) return;
+    new IntersectionObserver(function (entries) {
+      footerVisible = entries[0].isIntersecting;
+      updateFloat();
+    }).observe($('#footer'));
+  }
+
+  /* ---------- Parallax de la joya: solo mouse y sin reduced-motion ---------- */
+  function initParallax() {
+    const el = $('#hero-jewel'), hero = $('.hero');
+    if (!el || !hero) return;
+    let tx = 0, ty = 0, cx = 0, cy = 0, raf = 0;
+    function tick() {
+      cx += (tx - cx) * 0.08;
+      cy += (ty - cy) * 0.08;
+      el.style.transform = 'translate3d(' + (cx * 8).toFixed(2) + 'px,' + (cy * 8).toFixed(2) + 'px,0) rotate(' + (cx * 2).toFixed(3) + 'deg)';
+      if (Math.abs(tx - cx) > 0.002 || Math.abs(ty - cy) > 0.002) raf = requestAnimationFrame(tick);
+      else raf = 0;
+    }
+    hero.addEventListener('pointermove', function (e) {
+      if (e.pointerType !== 'mouse' || !FINE_POINTER.matches || OF.reducedMotion.matches) return;
+      const r = hero.getBoundingClientRect();
+      tx = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width - 0.5) * 2));
+      ty = Math.max(-1, Math.min(1, ((e.clientY - r.top) / r.height - 0.5) * 2));
+      if (!raf) raf = requestAnimationFrame(tick);
+    });
+    hero.addEventListener('pointerleave', function () {
+      tx = 0; ty = 0;
+      if (!raf) raf = requestAnimationFrame(tick);
+    });
+    OF.reducedMotion.addEventListener('change', function () { tx = ty = cx = cy = 0; el.style.transform = ''; });
+  }
+
+  /* ---------- Entradas al hacer scroll (solo la primera vez) ---------- */
   let revealIO = null;
   function observeReveals(root) {
     const els = $$('[data-reveal]:not(.is-in)', root || document);
@@ -1535,11 +1893,14 @@
   function init() {
     initStaticLinks();
     initNav();
+    initRouter();
     initReveals();
     initDialogs();
     initLightbox();
     initCart();
     initBookingNav();
+    initFloat();
+    initParallax();
 
     sb = createClient();
     ['hours', 'services', 'barbers', 'products', 'gallery'].forEach(loadOne);

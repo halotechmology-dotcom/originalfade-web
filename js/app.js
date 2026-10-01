@@ -25,8 +25,10 @@
      ------------------------------------------------------------------------ */
   const state = {
     services: [], barbers: [], week: null, products: [],
+    // Horarios ocupados que marca el panel: "barberoId|AAAA-MM-DD" → minutos de inicio de cada turno ocupado
+    blocked: {},
     // null = cargando · true = ok · false = error
-    ok: { services: null, barbers: null, hours: null, products: null },
+    ok: { services: null, barbers: null, hours: null, products: null, blocked: null },
     shopFilter: 'Todo',
     cart: [],
     cartNotice: '',
@@ -59,6 +61,11 @@
     hours: function () {
       return sb.from('business_hours').select('day_of_week,open_time,close_time,closed').order('day_of_week', { ascending: true });
     },
+    blocked: function () {
+      const days = nextDays();
+      return sb.from('blocked_slots').select('barber_id,day,start_time')
+        .gte('day', days[0].key).lte('day', days[days.length - 1].key);
+    },
     products: function () {
       return sb.from('products').select('id,name,description,category,price,sizes,images,in_stock,sort_order,created_at')
         .eq('visible', true).order('sort_order', { ascending: true }).order('created_at', { ascending: false });
@@ -74,6 +81,7 @@
       if (res.error) throw res.error;
       const rows = res.data || [];
       if (key === 'hours') state.week = OF.hoursByDay(rows);
+      else if (key === 'blocked') state.blocked = groupBlocked(rows);
       else state[key] = rows;
       state.ok[key] = true;
     } catch (err) {
@@ -88,6 +96,7 @@
     if (key === 'barbers') { renderBarbers(); renderBooking(); }
     if (key === 'hours') { renderStatus(); renderHours(); renderFooterHours(); renderBooking(); }
     if (key === 'products') { renderShop(); if (state.ok.products) revalidateCart(); }
+    if (key === 'blocked') { sanitizeBooking(); renderBooking(); }
   }
 
   function setBusy(root, key) { root.setAttribute('aria-busy', String(state.ok[key] === null)); }
@@ -244,7 +253,32 @@
   }
   function dayByKey(key) { return nextDays().find(function (d) { return d.key === key; }) || null; }
 
-  /* Horarios libres: cada 30 min desde la apertura hasta (cierre − duración) */
+  /* Filas de blocked_slots → { "barbero|día": [minutos] } */
+  function groupBlocked(rows) {
+    const out = {};
+    rows.forEach(function (r) {
+      const k = r.barber_id + '|' + r.day;
+      (out[k] = out[k] || []).push(OF.toMinutes(r.start_time));
+    });
+    return out;
+  }
+
+  /* ¿El barbero tiene algún bloque ocupado que se pise con [inicio, inicio + duración)? */
+  function barberBusy(barberId, dayKey, start, duration) {
+    const cells = state.blocked[barberId + '|' + dayKey];
+    if (!cells) return false;
+    return cells.some(function (c) { return c < start + duration && c + C.INTERVALO_MIN > start; });
+  }
+  function barberFree(barberId, dayKey, start, duration) {
+    if (!barberId || barberId === 'any') {
+      // "Me da igual": alcanza con que algún barbero esté libre
+      return !state.barbers.length || state.barbers.some(function (b) { return !barberBusy(b.id, dayKey, start, duration); });
+    }
+    return !barberBusy(barberId, dayKey, start, duration);
+  }
+
+  /* Horarios libres: un turno cada INTERVALO_MIN desde la apertura hasta (cierre − duración),
+     sin los que ya pasaron ni los que el panel marcó como ocupados */
   function slotsFor(dayKey, svc) {
     if (!state.week || !svc) return [];
     const day = dayByKey(dayKey);
@@ -252,9 +286,11 @@
     const hours = state.week[day.dow];
     if (hours.closed) return [];
     const now = OF.arNow();
+    const duration = Number(svc.duration_min);
     const out = [];
-    for (let m = hours.open; m + Number(svc.duration_min) <= hours.close; m += C.INTERVALO_MIN) {
+    for (let m = hours.open; m + duration <= hours.close; m += C.INTERVALO_MIN) {
       if (day.key === now.key && m <= now.minutes) continue; // hoy: ocultar horarios pasados
+      if (!barberFree(state.bk.barberId, day.key, m, duration)) continue;
       out.push(m);
     }
     return out;
@@ -322,6 +358,7 @@
   function bookFromBarber(barberId) {
     state.bk.barberId = barberId;
     state.bk.sent = false;
+    sanitizeBooking(); // el horario elegido puede estar ocupado para este barbero
     goStep(firstPending(), { focus: false });
     scrollToBooking();
   }
@@ -486,6 +523,7 @@
           selected: state.bk.barberId === b.id,
           onclick: function (e) {
             state.bk.barberId = b.id;
+            sanitizeBooking();
             markPressed(e.currentTarget);
             autoAdvance();
           }
@@ -1436,7 +1474,7 @@
   const VIEWS = ['inicio', 'servicios', 'turnos', 'tienda', 'contacto'];
   const ALIASES = { barberos: 'servicios' };
   const TITLES = {
-    inicio: 'ORIGINALFADE · Barbería y streetwear en Recoleta, CABA',
+    inicio: 'ORIGINALFADE · Barbería y Gallery en Recoleta, CABA',
     servicios: 'Servicios y precios · ORIGINALFADE',
     turnos: 'Reservá tu turno · ORIGINALFADE',
     tienda: 'Tienda · ORIGINALFADE',
@@ -1467,6 +1505,7 @@
     if (changed) {
       $$('[data-view]').forEach(function (v) { v.hidden = v.id !== id; });
       currentView = id;
+      if (id === 'turnos' && sb && !first) loadOne('blocked');
       document.title = TITLES[id] || TITLES.inicio;
     }
 
@@ -1702,7 +1741,7 @@
     initParallax();
 
     sb = createClient();
-    ['hours', 'services', 'barbers', 'products'].forEach(loadOne);
+    ['hours', 'services', 'barbers', 'products', 'blocked'].forEach(loadOne);
 
     // Cada minuto: estado abierto/cerrado, día de hoy y horarios que ya pasaron
     setInterval(function () {
@@ -1711,7 +1750,10 @@
       renderHours();
       const active = document.activeElement;
       const typing = active && (active.id === 'bk-name' || active.id === 'bk-phone');
-      if (!typing && !state.bk.sent) renderBooking();
+      if (!typing && !state.bk.sent) {
+        if (currentView === 'turnos' && sb) loadOne('blocked');
+        else renderBooking();
+      }
     }, 60000);
   }
 

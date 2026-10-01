@@ -21,9 +21,10 @@
   const MAX_SIDE = 1600;                      // lado mayor de las fotos subidas
   const MAX_BYTES = 5 * 1024 * 1024;          // límite del bucket
   const MAX_INPUT_BYTES = 30 * 1024 * 1024;   // fotos más pesadas ni se intentan
-  const TABS = ['productos', 'servicios', 'barberos', 'horarios'];
-  const TAB_DATA = { productos: 'products', servicios: 'services', barberos: 'barbers', horarios: 'hours' };
-  const TABLE = { products: 'products', services: 'services', barbers: 'barbers', hours: 'business_hours' };
+  const TABS = ['turnos', 'productos', 'servicios', 'barberos', 'horarios'];
+  // Datos que necesita cada pestaña para mostrarse
+  const TAB_NEEDS = { turnos: ['blocked', 'hours', 'barbers'], productos: ['products'], servicios: ['services'], barberos: ['barbers'], horarios: ['hours'] };
+  const TABLE = { products: 'products', services: 'services', barbers: 'barbers', hours: 'business_hours', blocked: 'blocked_slots' };
   const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];    // lunes primero
 
   let sb = null;
@@ -31,8 +32,9 @@
   const A = {
     user: null,
     tab: 'productos',
-    data: { products: [], services: [], barbers: [], hours: [] },
-    loaded: { products: null, services: null, barbers: null, hours: null }, // null | 'loading' | 'ok' | 'error'
+    data: { products: [], services: [], barbers: [], hours: [], blocked: [] },
+    loaded: { products: null, services: null, barbers: null, hours: null, blocked: null }, // null | 'loading' | 'ok' | 'error'
+    turnos: { barberId: null, dayKey: null },
     errors: {},
     mode: 'list',      // 'list' | 'form'
     form: null,        // borrador del formulario abierto
@@ -252,7 +254,7 @@
     $('#who').textContent = user.email || '';
     showView('app');
     const fromHash = location.hash.slice(1);
-    selectTab(TABS.indexOf(fromHash) !== -1 ? fromHash : 'productos', { force: true, focus: false });
+    selectTab(TABS.indexOf(fromHash) !== -1 ? fromHash : 'turnos', { force: true, focus: false });
     loadAll();
   }
 
@@ -360,6 +362,8 @@
      ======================================================================== */
   function initTabs() {
     const list = $('#tabs');
+    list.addEventListener('scroll', tabsEdge, { passive: true });
+    window.addEventListener('resize', tabsEdge);
     $$('[role="tab"]', list).forEach(function (tab) {
       tab.addEventListener('click', function () { selectTab(tab.dataset.tab); });
     });
@@ -402,20 +406,41 @@
       t.tabIndex = on ? 0 : -1;
     });
     $('#panel').setAttribute('aria-labelledby', 'tab-' + A.tab);
+    // En el celu las pestañas se deslizan: la elegida siempre queda a la vista
+    const list = $('#tabs'), sel = $('#tab-' + A.tab);
+    if (sel && list.scrollWidth > list.clientWidth) {
+      const left = sel.offsetLeft - list.offsetLeft, right = left + sel.offsetWidth;
+      if (left < list.scrollLeft) list.scrollLeft = left - 16;
+      else if (right > list.scrollLeft + list.clientWidth) list.scrollLeft = right - list.clientWidth + 16;
+    }
+    tabsEdge();
+  }
+
+  /* Difumina el borde derecho mientras haya pestañas escondidas */
+  function tabsEdge() {
+    const list = $('#tabs');
+    const more = list.scrollLeft + list.clientWidth < list.scrollWidth - 2;
+    if (more) list.setAttribute('data-more', ''); else list.removeAttribute('data-more');
   }
 
   const QUERIES = {
     products: function () { return sb.from('products').select('*').order('sort_order', { ascending: true }).order('created_at', { ascending: false }); },
     services: function () { return sb.from('services').select('*').order('sort_order', { ascending: true }).order('name', { ascending: true }); },
     barbers: function () { return sb.from('barbers').select('*').order('sort_order', { ascending: true }).order('name', { ascending: true }); },
-    hours: function () { return sb.from('business_hours').select('*').order('day_of_week', { ascending: true }); }
+    hours: function () { return sb.from('business_hours').select('*').order('day_of_week', { ascending: true }); },
+    blocked: function () {
+      return sb.from('blocked_slots').select('*').gte('day', OF.arNow().key)
+        .order('day', { ascending: true }).order('start_time', { ascending: true });
+    }
   };
 
   function loadAll() { Object.keys(QUERIES).forEach(load); }
 
+  function tabUses(key) { return TAB_NEEDS[A.tab].indexOf(key) !== -1 && A.mode === 'list'; }
+
   async function load(key) {
     A.loaded[key] = 'loading';
-    if (TAB_DATA[A.tab] === key && A.mode === 'list') render();
+    if (tabUses(key)) render();
     try {
       const res = await OF.withTimeout(QUERIES[key](), 15000, 'timeout');
       if (res.error) throw res.error;
@@ -425,18 +450,21 @@
       A.loaded[key] = 'error';
       A.errors[key] = errMsg(err);
     }
-    if (TAB_DATA[A.tab] === key && A.mode === 'list') render();
+    if (tabUses(key)) render();
   }
 
   function render() {
     const panel = $('#panel');
-    const key = TAB_DATA[A.tab];
     if (A.mode === 'form') return;
-    if (A.loaded[key] !== 'ok') {
-      if (A.loaded[key] === 'error') {
+    const needs = TAB_NEEDS[A.tab];
+    const failed = needs.find(function (k) { return A.loaded[k] === 'error'; });
+    const pending = needs.find(function (k) { return A.loaded[k] !== 'ok'; });
+    const key = failed || pending;
+    if (key) {
+      if (failed) {
         mount(panel, h('div', { class: 'a-empty', role: 'alert' },
           h('p', { text: 'No pudimos cargar los datos. ' + A.errors[key] }),
-          h('button', { type: 'button', class: 'btn btn--lens', onclick: function () { load(key); } }, 'Reintentar')));
+          h('button', { type: 'button', class: 'btn btn--lens', onclick: function () { needs.forEach(function (k) { if (A.loaded[k] === 'error') load(k); }); } }, 'Reintentar')));
       } else {
         mount(panel, h('div', { 'aria-busy': 'true' },
           h('span', { class: 'skel', style: { height: '2rem', width: '40%' } }),
@@ -445,7 +473,7 @@
       }
       return;
     }
-    ({ productos: productsList, servicios: servicesList, barberos: barbersList, horarios: hoursForm })[A.tab]();
+    ({ turnos: turnosView, productos: productsList, servicios: servicesList, barberos: barbersList, horarios: hoursForm })[A.tab]();
   }
 
   /* Reordenar: intercambia y renumera sort_order (10, 20, 30...) */
@@ -1165,7 +1193,211 @@
   }
 
   /* ========================================================================
-     8. Horarios
+     8. Turnos: horarios ocupados por barbero
+     Cada turno (INTERVALO_MIN) se puede marcar como ocupado. La web no ofrece
+     los horarios que se pisan con un bloque ocupado de ese barbero.
+     ======================================================================== */
+  const SLOT_MIN = C.INTERVALO_MIN;
+  const pendingCells = new Set();
+
+  function turnosDays() {
+    const now = OF.arNow();
+    const out = [];
+    for (let i = 0; i < C.DIAS_A_MOSTRAR; i++) out.push(OF.addDays(now.date, i));
+    return out;
+  }
+  function openHours(dow) {
+    const r = A.data.hours.find(function (x) { return x.day_of_week === dow; });
+    if (!r || r.closed || !r.open_time || !r.close_time) return null;
+    const open = OF.toMinutes(hhmm(r.open_time)), close = OF.toMinutes(hhmm(r.close_time));
+    return close > open ? { open: open, close: close } : null;
+  }
+  function cellsOf(hrs) {
+    const out = [];
+    for (let m = hrs.open; m + SLOT_MIN <= hrs.close; m += SLOT_MIN) out.push(m);
+    return out;
+  }
+  function blockedRows(barberId, dayKey) {
+    return A.data.blocked.filter(function (r) { return r.barber_id === barberId && r.day === dayKey; });
+  }
+  function rowAt(barberId, dayKey, m) {
+    return A.data.blocked.find(function (r) { return r.barber_id === barberId && r.day === dayKey && OF.toMinutes(hhmm(r.start_time)) === m; });
+  }
+  function cellPast(day, m) {
+    const now = OF.arNow();
+    return day.key === now.key && m + SLOT_MIN <= now.minutes;
+  }
+
+  function turnosView(focusSel) {
+    const panel = $('#panel');
+    const T = A.turnos;
+    const barbers = A.data.barbers.filter(function (b) { return b.active; });
+    const days = turnosDays();
+    if (!barbers.some(function (b) { return b.id === T.barberId; })) T.barberId = barbers.length ? barbers[0].id : null;
+    if (!days.some(function (d) { return d.key === T.dayKey; })) {
+      const firstOpen = days.find(function (d) { return openHours(d.dow); });
+      T.dayKey = (firstOpen || days[0]).key;
+    }
+
+    const head = h('div', { class: 'a-head' }, h('h2', { class: 'a-head__title', tabindex: '-1', text: 'Turnos' }));
+    const intro = h('p', { class: 'a-muted a-turnos__intro', text: 'Tocá un horario para marcarlo como ocupado: la web deja de ofrecerlo. Tocalo de nuevo para liberarlo.' });
+    if (!barbers.length) {
+      mount(panel, head, intro, h('div', { class: 'a-empty' }, h('p', { text: 'No hay barberos activos. Cargá o activá uno en la pestaña Barberos.' })));
+      return;
+    }
+    const barber = barbers.find(function (b) { return b.id === T.barberId; });
+    const day = days.find(function (d) { return d.key === T.dayKey; });
+    const hrs = openHours(day.dow);
+
+    /* Barbero */
+    const barberBar = h('div', { class: 'a-seg', role: 'group', 'aria-label': 'Barbero' }, barbers.map(function (b) {
+      return h('button', {
+        type: 'button', class: 'a-seg__btn', 'aria-pressed': String(b.id === T.barberId),
+        onclick: function () { T.barberId = b.id; turnosView('.a-seg__btn[aria-pressed="true"]'); }
+      }, b.name);
+    }));
+
+    /* Días */
+    const dayBar = h('div', { class: 'a-days', role: 'group', 'aria-label': 'Día' }, days.map(function (d, i) {
+      const dh = openHours(d.dow);
+      const n = dh ? blockedRows(T.barberId, d.key).length : 0;
+      const full = dh && n >= cellsOf(dh).length;
+      const top = i === 0 ? 'Hoy' : i === 1 ? 'Mañana' : OF.capitalize(OF.DIAS_CORTOS[d.dow]);
+      const info = !dh ? 'Cerrado' : full ? 'Lleno' : n ? n + ' ocup.' : 'Libre';
+      const spoken = !dh ? 'cerrado' : full ? 'todo ocupado' : n ? n + (n === 1 ? ' horario ocupado' : ' horarios ocupados') : 'todo libre';
+      return h('button', {
+        type: 'button', class: 'a-day', 'data-key': d.key, 'aria-pressed': String(d.key === T.dayKey), disabled: !dh,
+        'aria-label': OF.capitalize(OF.DIAS[d.dow]) + ' ' + d.day + '/' + (d.month + 1) + ', ' + spoken,
+        onclick: function () { T.dayKey = d.key; turnosView('.a-day[aria-pressed="true"]'); }
+      },
+        h('span', { class: 'a-day__dow', text: top }),
+        h('span', { class: 'a-day__num', text: String(d.day) }),
+        h('span', { class: 'a-day__info', 'data-busy': n ? '' : null, text: info })
+      );
+    }));
+
+    /* Horarios del día elegido */
+    let body;
+    if (!hrs) {
+      body = h('div', { class: 'a-empty' }, h('p', { text: 'Ese día la barbería está cerrada. Lo cambiás en la pestaña Horarios.' }));
+    } else {
+      const cells = cellsOf(hrs);
+      const live = cells.filter(function (m) { return !cellPast(day, m); });
+      const nBusy = live.filter(function (m) { return rowAt(T.barberId, day.key, m); }).length;
+      const groups = [
+        { name: 'Mañana', test: function (m) { return m < 12 * 60; } },
+        { name: 'Tarde', test: function (m) { return m >= 12 * 60 && m < 18 * 60; } },
+        { name: 'Noche', test: function (m) { return m >= 18 * 60; } }
+      ];
+      const title = OF.capitalize(OF.DIAS[day.dow]) + ' ' + OF.ddmm(day.date) + ' · ' + barber.name;
+      body = h('div', { class: 'a-turnos__day' },
+        h('div', { class: 'a-turnos__bar' },
+          h('div', null,
+            h('h3', { class: 'a-turnos__title', text: title }),
+            h('p', { class: 'a-hint', role: 'status', text: live.length ? nBusy + (nBusy === 1 ? ' ocupado' : ' ocupados') + ' · ' + (live.length - nBusy) + (live.length - nBusy === 1 ? ' libre' : ' libres') : 'Ya pasaron todos los horarios de hoy.' })
+          ),
+          h('div', { class: 'a-turnos__bulk' },
+            h('button', { type: 'button', class: 'btn btn--ghost btn--sm', disabled: nBusy === live.length, onclick: function () { occupyAll(day, cells); } }, 'Ocupar todo el día'),
+            h('button', { type: 'button', class: 'btn btn--ghost btn--sm', disabled: blockedRows(T.barberId, day.key).length === 0, onclick: function () { freeAll(day, barber); } }, 'Liberar todo el día'))
+        ),
+        groups.map(function (g) {
+          const list = cells.filter(g.test);
+          if (!list.length) return null;
+          return h('div', { class: 'a-slot-group', role: 'group', 'aria-label': g.name },
+            h('p', { class: 'field__label', text: g.name }),
+            h('div', { class: 'a-slots' }, list.map(function (m) {
+              const busy = !!rowAt(T.barberId, day.key, m);
+              const past = cellPast(day, m);
+              return h('button', {
+                type: 'button', class: 'a-slot', 'data-min': String(m), 'aria-pressed': String(busy), disabled: past,
+                'aria-label': OF.fmtMinutes(m) + (past ? ', ya pasó' : busy ? ', ocupado' : ', libre'),
+                onclick: function () { toggleCell(day.key, m); }
+              },
+                h('span', { class: 'a-slot__time', text: OF.fmtMinutes(m) }),
+                h('span', { class: 'a-slot__state', text: past ? 'Pasó' : busy ? 'Ocupado' : 'Libre' })
+              );
+            }))
+          );
+        }),
+        h('p', { class: 'a-hint a-turnos__note', text: 'Cada horario es un turno de ' + C.INTERVALO_MIN + ' minutos. Cuando confirmes un turno por WhatsApp, marcalo acá.' })
+      );
+    }
+
+    mount(panel, head, intro,
+      h('div', { class: 'a-turnos__pick' },
+        h('div', { class: 'field' }, h('span', { class: 'field__label', text: 'Barbero' }), barberBar),
+        h('div', { class: 'field' }, h('span', { class: 'field__label', text: 'Día' }), dayBar)),
+      body);
+
+    const sel = $('.a-day[aria-pressed="true"]', panel);
+    if (sel) sel.parentNode.scrollLeft = Math.max(0, sel.offsetLeft - sel.parentNode.clientWidth / 2 + sel.offsetWidth / 2);
+    if (focusSel) { const el = $(focusSel, panel); if (el) el.focus({ preventScroll: true }); }
+  }
+
+  async function toggleCell(dayKey, m) {
+    const T = A.turnos, barberId = T.barberId;
+    const ck = barberId + '|' + dayKey + '|' + m;
+    if (pendingCells.has(ck)) return;
+    pendingCells.add(ck);
+    const existing = rowAt(barberId, dayKey, m);
+    const focus = '.a-slot[data-min="' + m + '"]';
+    status.saving();
+    let res;
+    try {
+      if (existing) {
+        A.data.blocked = A.data.blocked.filter(function (r) { return r !== existing; });
+        turnosView(focus);
+        res = await sb.from('blocked_slots').delete().eq('id', existing.id);
+      } else {
+        const temp = { id: 'tmp-' + OF.uuid(), barber_id: barberId, day: dayKey, start_time: OF.fmtMinutes(m) + ':00' };
+        A.data.blocked.push(temp);
+        turnosView(focus);
+        res = await sb.from('blocked_slots').insert({ barber_id: barberId, day: dayKey, start_time: OF.fmtMinutes(m) }).select().single();
+        if (!res.error && res.data) Object.assign(temp, res.data);
+      }
+    } catch (err) {
+      res = { error: err };
+    } finally {
+      pendingCells.delete(ck);
+    }
+    if (res.error) {
+      status.error('No se guardó. ' + errMsg(res.error));
+      await load('blocked');
+      return;
+    }
+    status.ok(existing ? 'Horario liberado ✓' : 'Horario ocupado ✓');
+  }
+
+  async function occupyAll(day, cells) {
+    const barberId = A.turnos.barberId;
+    const rows = cells.filter(function (m) { return !cellPast(day, m) && !rowAt(barberId, day.key, m); })
+      .map(function (m) { return { barber_id: barberId, day: day.key, start_time: OF.fmtMinutes(m) }; });
+    if (!rows.length) return;
+    status.saving();
+    const res = await sb.from('blocked_slots').insert(rows).select();
+    if (res.error) { status.error('No se guardó. ' + errMsg(res.error)); await load('blocked'); return; }
+    A.data.blocked = A.data.blocked.concat(res.data || []);
+    turnosView();
+    status.ok('Día completo ocupado ✓');
+  }
+
+  async function freeAll(day, barber) {
+    const ok = await confirmDialog({
+      title: '¿Liberar todo el día?',
+      text: 'Todos los horarios de ' + barber.name + ' del ' + OF.DIAS[day.dow] + ' ' + OF.ddmm(day.date) + ' vuelven a estar disponibles en la web.',
+      ok: 'Liberar', danger: false
+    });
+    if (!ok) return;
+    status.saving();
+    const res = await sb.from('blocked_slots').delete().eq('barber_id', barber.id).eq('day', day.key);
+    if (res.error) { status.error('No se guardó. ' + errMsg(res.error)); await load('blocked'); return; }
+    A.data.blocked = A.data.blocked.filter(function (r) { return !(r.barber_id === barber.id && r.day === day.key); });
+    turnosView();
+    status.ok('Día liberado ✓');
+  }
+
+  /* ========================================================================
+     9. Horarios
      ======================================================================== */
   function hhmm(t) { return t ? String(t).slice(0, 5) : ''; }
 
@@ -1195,7 +1427,7 @@
 
     mount($('#panel'),
       h('div', { class: 'a-head' }, h('h2', { class: 'a-head__title', tabindex: '-1', text: 'Horarios' })),
-      h('p', { class: 'a-muted', style: { marginBottom: '1rem' }, text: 'Con estos horarios la web muestra si está abierto y arma los turnos (cada 30 minutos).' }),
+      h('p', { class: 'a-muted', style: { marginBottom: '1rem' }, text: 'Con estos horarios la web muestra si está abierto y arma los turnos (cada ' + C.INTERVALO_MIN + ' minutos).' }),
       h('form', { class: 'a-form', novalidate: true, onsubmit: function (e) { e.preventDefault(); saveHours(rows, err); },
         oninput: function () { if (err.textContent) setMsg(err, ''); } },
         list,
@@ -1235,7 +1467,7 @@
   }
 
   /* ========================================================================
-     9. Arranque
+     10. Arranque
      ======================================================================== */
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();

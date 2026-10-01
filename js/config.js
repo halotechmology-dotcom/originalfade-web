@@ -27,8 +27,8 @@ window.OF_CONFIG = Object.freeze({
   ZONA_HORARIA: 'America/Argentina/Buenos_Aires',
 
   /* --- Turnos ------------------------------------------------------------ */
-  DIAS_A_MOSTRAR: 21,       // cuántos días hacia adelante se pueden reservar
-  INTERVALO_MIN: 30,        // cada cuántos minutos arranca un turno
+  DIAS_A_MOSTRAR: 7,        // cuántos días hacia adelante se pueden reservar
+  INTERVALO_MIN: 45,        // cada cuántos minutos arranca un turno
 
   /* --- Envíos -------------------------------------------------------------
      Costo = km × PRECIO_POR_KM. Es un estimado: se confirma por WhatsApp. */

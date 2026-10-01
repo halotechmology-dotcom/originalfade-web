@@ -18,6 +18,21 @@ Solo pueden entrar las cuentas que están en la lista de administradores. Si alg
 
 ---
 
+## 1 bis. Turnos: marcar horarios ocupados
+
+El panel abre en la pestaña **Turnos**. Ahí marcás qué horarios ya están tomados, para que nadie más los pueda reservar desde la web.
+
+1. Elegí el **barbero** y el **día** (se muestran los próximos 7 días; los cerrados no se pueden elegir).
+2. Tocá un horario para marcarlo **Ocupado**. Tocalo de nuevo para dejarlo **Libre**. Se guarda solo y aparece "Horario ocupado ✓".
+3. Atajos: **Ocupar todo el día** (por ejemplo, si ese barbero no viene) y **Liberar todo el día**.
+
+Cómo lo usa la web:
+- Cada horario es un turno de 45 minutos (10:00, 10:45, 11:30…). Un horario ocupado no se ofrece para ese barbero.
+- Si el cliente elige "Me da igual", el horario se ofrece mientras algún barbero esté libre.
+- La web **no ocupa los horarios sola**: cuando confirmás un turno por WhatsApp, marcalo acá.
+
+---
+
 ## 2. Cargar un producto con fotos
 
 1. Pestaña **Productos** → botón **Nuevo producto**.
@@ -68,7 +83,7 @@ En la lista, cada fila tiene flechas ↑ ↓. El orden del panel es el orden de 
 2. Para cada día: interruptor **Abierto** y hora de apertura y cierre. Si lo apagás, ese día figura como cerrado.
 3. **Guardar horarios**.
 
-Con estos horarios la web dice si el local está abierto ahora y arma los turnos cada 30 minutos.
+Con estos horarios la web dice si el local está abierto ahora y arma los turnos cada 45 minutos.
 
 > Los horarios que lee **Google** están escritos aparte, dentro de `index.html` (buscá `openingHoursSpecification`). Si cambiás el horario de forma permanente, pedí que los actualicen ahí también.
 

@@ -80,10 +80,9 @@ Con estos horarios la web dice si el local está abierto ahora y arma los turnos
 2. Escribí tu email → **Enviar link**. Te llega un correo (mirá también en spam).
 3. Abrí el link: se abre el panel con **"Creá tu contraseña nueva"**. Escribila dos veces (mínimo 8 caracteres) → **Guardar contraseña**.
 
-**Configuración necesaria, una sola vez** (si no, el link del correo lleva a una página equivocada):
-en Supabase → **Authentication → URL Configuration**:
-- **Site URL**: `https://tu-dominio`
-- **Redirect URLs**: agregá `https://tu-dominio/admin.html` (y también `https://originalfade-web.vercel.app/admin.html` mientras uses esa dirección).
+**Ya está configurado** (1/10/2026): en Supabase → **Authentication → URL Configuration** figuran
+`https://originalfade-web.vercel.app` como Site URL y `https://originalfade-web.vercel.app/admin.html` como Redirect URL.
+Si algún día cambiás de dominio, agregá ahí la dirección nueva terminada en `/admin.html`; si no, el link del correo lleva a una página equivocada.
 
 ---
 
@@ -131,17 +130,10 @@ y abrí la dirección que aparece (por ejemplo `http://localhost:3000`). El pane
 
 ---
 
-## 12. Una mejora recomendada (fotos borradas)
+## 12. Fotos borradas
 
-Cuando quitás una foto o borrás un producto, la foto **desaparece de la web**, pero el archivo puede quedar guardado en Supabase ocupando espacio, porque hoy falta un permiso de "ver" fotos para el administrador.
-No rompe nada. Para que el panel también borre el archivo, en Supabase → **SQL Editor** pegá esto y tocá **Run** (una sola vez):
-
-```sql
-create policy "admin ve fotos"
-on storage.objects for select
-to authenticated
-using (bucket_id = 'fotos' and private.is_admin());
-```
+Cuando quitás una foto o borrás un producto en el panel, el archivo también se borra de Supabase.
+(El permiso que lo permite, "admin ve fotos", ya está aplicado desde el 1/10/2026; solo lo tienen las cuentas de administrador.)
 
 ---
 

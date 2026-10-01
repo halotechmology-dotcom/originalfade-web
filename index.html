@@ -160,11 +160,25 @@
 
         <figure class="hero__stage">
           <span class="hero__parallax" id="hero-jewel">
-            <picture>
-              <source type="image/webp" srcset="assets/joya-mascota-560.webp 560w, assets/joya-mascota.webp 939w" sizes="(min-width: 56rem) 20rem, 196px">
-              <img class="hero__jewel" src="assets/joya-mascota.jpg" width="939" height="1148" fetchpriority="high" decoding="async"
-                   alt="Dije de ORIGINALFADE: la mascota hecha joya, con pelo de piedras negras, cara en tonos rosados y lentes dorados con lunas">
-            </picture>
+            <!-- Tarjeta 3D que gira 360°: frente, dorso y núcleo (da el grosor) -->
+            <span class="hero__spin">
+              <span class="hero__face">
+                <picture>
+                  <source type="image/webp" srcset="assets/joya-mascota-560.webp 560w, assets/joya-mascota.webp 939w" sizes="(min-width: 56rem) 20rem, 196px">
+                  <img class="hero__jewel" src="assets/joya-mascota.jpg" width="939" height="1148" fetchpriority="high" decoding="async"
+                       alt="Dije de ORIGINALFADE: la mascota hecha joya, con pelo de piedras negras, cara en tonos rosados y lentes dorados con lunas">
+                </picture>
+              </span>
+              <span class="hero__face hero__face--back" aria-hidden="true">
+                <picture>
+                  <source type="image/webp" srcset="assets/joya-mascota-560.webp 560w, assets/joya-mascota.webp 939w" sizes="(min-width: 56rem) 20rem, 196px">
+                  <img class="hero__jewel" src="assets/joya-mascota.jpg" width="939" height="1148" decoding="async" alt="">
+                </picture>
+              </span>
+              <span class="hero__core" aria-hidden="true"></span>
+              <span class="hero__edge" aria-hidden="true"></span>
+              <span class="hero__edge hero__edge--r" aria-hidden="true"></span>
+            </span>
           </span>
         </figure>
       </div>

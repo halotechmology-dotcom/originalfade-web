@@ -596,22 +596,61 @@ html[data-menu-open] .mmenu li, html[data-menu-open] .mmenu__foot {
 .hero__lede { margin-top: var(--s-4); max-width: 40ch; color: #DADADA; font-size: var(--fs-lede); line-height: 1.6; }
 .hero__ctas { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-5); }
 
-/* El dije: tarjeta abajo a la derecha, con sus colores */
+/* El dije: tarjeta 3D abajo a la derecha, con sus colores, girando 360° */
 .hero__stage {
-  position: relative;
+  position: relative; isolation: isolate;
   margin: 0;
   justify-self: start;
   height: 240px;
   aspect-ratio: 939 / 1148;
-  border: 2px solid var(--linea-2);
-  border-radius: 18px;
-  overflow: hidden;
-  background: #0d0d0d;
-  box-shadow: 0 24px 50px -20px #000;
 }
-.hero__parallax { display: block; height: 100%; }
-.hero__parallax picture { display: block; height: 100%; }
+/* Sombra en el piso: queda quieta mientras la tarjeta gira */
+.hero__stage::after {
+  content: ""; position: absolute; z-index: -1;
+  left: 12%; right: 12%; bottom: -14px; height: 28px;
+  background: radial-gradient(closest-side, rgb(0 0 0 / 0.85), transparent);
+  pointer-events: none;
+}
+.hero__parallax { display: block; height: 100%; perspective: 900px; }
+.hero__spin {
+  position: relative; display: block; height: 100%;
+  transform-style: preserve-3d;
+}
+.hero__face, .hero__core {
+  position: absolute; inset: 0;
+  border-radius: 18px;
+}
+.hero__face {
+  overflow: hidden;
+  border: 2px solid var(--linea-2);
+  background: #0d0d0d;
+  transform: translateZ(9px);
+  backface-visibility: hidden;
+}
+/* Dorso: la misma foto, espejada para que se lea derecha desde atrás */
+.hero__face--back { transform: rotateY(180deg) translateZ(9px); }
+.hero__face--back .hero__jewel { transform: scaleX(-1); }
+.hero__core { background: linear-gradient(180deg, #3f3f3f, #111); }
+/* Cantos: dan el grosor cuando la tarjeta queda de perfil */
+.hero__edge {
+  position: absolute; top: 12px; bottom: 12px; left: -9px;
+  width: 18px;
+  background: linear-gradient(180deg, #4a4a4a, #161616);
+  transform: rotateY(90deg);
+}
+.hero__edge--r { left: auto; right: -9px; }
+.hero__face picture { display: block; height: 100%; }
 .hero__jewel { width: 100%; height: 100%; object-fit: cover; }
+
+/* Giro continuo (lineal, como el diseño original): una vuelta cada 11 s.
+   Con "reducir movimiento" queda quieta; con el mouse encima se frena. */
+@media (prefers-reduced-motion: no-preference) {
+  .hero__spin { animation: jewel-spin 11s linear infinite; }
+}
+@media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) {
+  .hero__stage:hover .hero__spin { animation-play-state: paused; }
+}
+@keyframes jewel-spin { from { transform: rotateY(0deg); } to { transform: rotateY(360deg); } }
 
 @media (min-width: 56rem) {
   .hero__bg { background-position: center 35%; }

@@ -485,7 +485,7 @@ html[data-menu-open] .burger .icon--close { display: block; }
 
   /* Links como stickers: misma letra y colores que "Recoleta · CABA".
      El fondo blanco es un ::before más bajo que el link, así el área
-     de clic sigue midiendo 44 px. La sección activa va inclinada. */
+     de clic sigue midiendo 44 px. Todas derechas; la activa lleva la rayita de abajo. */
   /* Mismo espacio entre todas; crece un poco en pantallas anchas */
   .nav__links ul { gap: clamp(1rem, 1.8vw, 1.75rem); align-items: center; }
   .nav__links a {
@@ -503,12 +503,11 @@ html[data-menu-open] .burger .icon--close { display: block; }
     border-radius: var(--r-sm);
     box-shadow: 0 6px 14px -8px var(--sombra);
   }
-  .nav__links a[aria-current="page"] { color: var(--tinta); transform: rotate(-2deg); }
+  .nav__links a[aria-current="page"] { color: var(--tinta); }
   .nav__indicator { bottom: 0; }
 }
 @media (min-width: 64rem) and (hover: hover) and (pointer: fine) {
   .nav__links a:hover { color: var(--tinta); }
-  .nav__links a:not([aria-current="page"]):hover { transform: rotate(-1deg); }
 }
 
 /* Menú mobile a pantalla completa */

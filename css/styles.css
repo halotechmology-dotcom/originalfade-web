@@ -422,6 +422,9 @@ main:focus { outline: none; }
   transition: transform var(--dur-ui) var(--ease-out);
 }
 .nav__logo img { height: 2.375rem; width: auto; }
+/* En la web el logo va sin recuadro: la imagen ya trae el texto en blanco */
+.nav .nav__logo { background: none; padding: 0; border-radius: 0; }
+.nav .nav__logo img { height: 2.75rem; }
 
 .nav__links { display: none; position: relative; margin-inline: auto; }
 .nav__links ul { list-style: none; display: flex; gap: 0.25rem; }
@@ -477,6 +480,7 @@ html[data-menu-open] .burger .icon--close { display: block; }
   .nav__links { display: block; }
   .burger, .mmenu { display: none !important; }
   .nav__logo img { height: 3rem; }
+  .nav .nav__logo img { height: 3.4rem; }
   .nav__actions { margin-left: 0; }
 
   /* Links como stickers: misma letra y colores que "Recoleta · CABA".
@@ -571,6 +575,16 @@ html[data-menu-open] .mmenu li, html[data-menu-open] .mmenu__foot {
   filter: grayscale(1);
 }
 .hero > .wrap { width: 100%; }
+@media (max-width: 55.99rem) {
+  .hero { --band: min(80vw, 22rem); padding-top: calc(var(--nav-h) + var(--band) + var(--s-3)); }
+  .hero__bg {
+    bottom: auto; height: calc(var(--nav-h) + var(--band));
+    background-image:
+      linear-gradient(180deg, rgb(0 0 0 / 0.5) 0%, rgb(0 0 0 / 0.1) 30%, rgb(0 0 0 / 0.35) 75%, #000 100%),
+      var(--hero-foto);
+    background-position: 52% 40%;
+  }
+}
 .hero__grid { display: grid; gap: var(--s-5); align-items: end; }
 .hero__copy { min-width: 0; }
 
@@ -587,7 +601,7 @@ html[data-menu-open] .mmenu li, html[data-menu-open] .mmenu__foot {
 .status[data-open="true"] .status__dot { background: var(--sticker); box-shadow: 0 0 0 4px rgb(255 255 255 / 0.18); }
 
 .hero__title {
-  font: 400 var(--fs-h1)/1.02 var(--f-display);
+  font: 400 clamp(28px, 7.6vw, 38px)/1.05 var(--f-display);
   letter-spacing: var(--ls-title);
   text-transform: uppercase;
   color: var(--sticker);
@@ -655,7 +669,12 @@ html[data-menu-open] .mmenu li, html[data-menu-open] .mmenu__foot {
 @media (min-width: 56rem) {
   .hero__bg { background-position: center 35%; }
   .hero__grid { grid-template-columns: minmax(0, 1fr) auto; gap: var(--s-6); }
+  .hero__title { font-size: clamp(36px, 3.9vw, 56px); max-width: 10.5ch; }
   .hero__stage { height: auto; width: clamp(15rem, 22vw, 20rem); justify-self: end; }
+}
+/* Compu chica: "Abierto hoy" baja debajo del sticker para no rozar la cara del cartel */
+@media (min-width: 56rem) and (max-width: 72rem) {
+  .hero__meta { max-width: 16rem; }
 }
 
 /* Entrada: una sola vez al cargar */

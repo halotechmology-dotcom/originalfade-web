@@ -87,8 +87,8 @@
   <div class="wrap nav__bar">
     <a class="nav__logo" href="#inicio" aria-label="ORIGINALFADE, ir al inicio">
       <picture>
-        <source srcset="assets/logo-blanco.webp" type="image/webp">
-        <img src="assets/logo-blanco.png" width="740" height="254" alt="">
+        <source srcset="assets/logo-texto.webp" type="image/webp">
+        <img src="assets/logo-texto.png" width="529" height="131" alt="">
       </picture>
     </a>
 
@@ -370,7 +370,10 @@
 <footer class="footer" id="footer">
   <div class="dots dots--band" aria-hidden="true"></div>
   <div class="wrap">
-    <p class="footer__word" aria-hidden="true">OriginalFade</p>
+    <picture class="footer__word">
+      <source srcset="assets/wordmark-original-fade.webp" type="image/webp">
+      <img src="assets/wordmark-original-fade.png" width="1873" height="199" loading="lazy" decoding="async" alt="Original Fade">
+    </picture>
     <div class="footer__grid">
       <div class="footer__col">
         <p class="footer__k">Visitanos</p>
@@ -390,15 +393,23 @@
         </ul>
       </div>
       <div class="footer__col footer__sign">
-        <picture>
-          <source srcset="assets/tag-blanco.webp" type="image/webp">
-          <img class="footer__tag" src="assets/tag-blanco.png" width="582" height="214" loading="lazy" decoding="async" alt="Firma de Original Fade">
-        </picture>
+        <a class="footer__logo-link" href="https://www.instagram.com/eloriginalfade/" target="_blank" rel="noopener" aria-label="Instagram de Original Fade (se abre en otra pestaña)">
+          <picture>
+            <source srcset="assets/tag-graffiti.webp" type="image/webp">
+            <img class="footer__tag" src="assets/tag-graffiti.png" width="800" height="495" loading="lazy" decoding="async" alt="">
+          </picture>
+        </a>
+        <a class="footer__logo-link" href="https://www.instagram.com/eloriginalfade/" target="_blank" rel="noopener" aria-label="Temple Studio: Instagram de Original Fade (se abre en otra pestaña)">
+          <picture>
+            <source srcset="assets/temple-studio.webp" type="image/webp">
+            <img class="footer__temple" src="assets/temple-studio.png" width="974" height="279" loading="lazy" decoding="async" alt="">
+          </picture>
+        </a>
       </div>
     </div>
     <div class="footer__legal">
       <p>© <span id="year">2026</span> ORIGINALFADE</p>
-      <p>Barbería y Gallery · Recoleta, CABA</p>
+      <p class="footer__claim">Gallery &amp; Barbershop · Recoleta, CABA</p>
     </div>
   </div>
 </footer>

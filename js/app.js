@@ -1474,7 +1474,7 @@
   const VIEWS = ['inicio', 'servicios', 'turnos', 'tienda', 'contacto'];
   const ALIASES = { barberos: 'servicios' };
   const TITLES = {
-    inicio: 'ORIGINALFADE · Barbería y Gallery en Recoleta, CABA',
+    inicio: 'ORIGINALFADE · Gallery & Barbershop en Recoleta, CABA',
     servicios: 'Servicios y precios · ORIGINALFADE',
     turnos: 'Reservá tu turno · ORIGINALFADE',
     tienda: 'Tienda · ORIGINALFADE',
